@@ -22,6 +22,10 @@ Sucursal.init({
         allowNull: false,
         defaultValue: DataTypes.NOW,
     },
+    contraseña_sucursal: {
+        type: DataTypes.STRING(45),
+        allowNull: false,
+    }
 },
 {
     sequelize,

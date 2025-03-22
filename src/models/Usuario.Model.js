@@ -53,6 +53,15 @@ Categoria.init({
         allowNull: false,
         defaultValue: DataTypes.NOW,
     },
+    usuario: {
+        type: DataTypes.STRING(45),
+        allowNull: false,
+    },
+    clave_acceso: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        unique: true,
+    },
 },
 {
     sequelize,

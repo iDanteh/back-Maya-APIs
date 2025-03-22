@@ -1,28 +1,26 @@
 import express from 'express';
-import { PORT } from './config.js';
-import sequelize from './database/conexion.js';
-import categorias from './routes/Categoria.Routes.js';
-import morgan from 'morgan';
+import { PORT } from './config.js'; // Importar el puerto desde el archivo config.js
+import sequelize from './database/conexion.js'; // Importar la conexión a la base de datos
+import routes from './routes/index.js'; // Importar todas las rutas desde el archivo index.js
+import morgan from 'morgan'; // Importar morgan para ver las peticiones en consola
 
 const app = express();
 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true })); 
 app.use(morgan('dev'));
-app.use(express.json());
-app.use(categorias);
+app.use(express.json()); 
+app.use(routes);
 
 // Asignación del puerto que va a escuchar el servidor
 app.listen(PORT);
 console.log('Escuchando en el puerto', PORT);
 
 // Prueba para la conexión con la base de datos workbench
-async function tectConnection() {
+(async function testConnection() {
     try {
         await sequelize.authenticate();
-        console.log('Conexión exitosa')
+        console.log('Conexión exitosa');
     } catch (error) {
-        console.log('Error al conectarse a la base de datos', error)
+        console.error('Error al conectarse a la base de datos:', error);
     }
-}
-
-tectConnection();
+})();
