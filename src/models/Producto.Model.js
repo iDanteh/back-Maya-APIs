@@ -19,7 +19,7 @@ Producto.init({
         type: DataTypes.STRING(255),
         allowNull: false,
     },
-    gramage: {
+    gramaje: {
         type: DataTypes.INTEGER,
         allowNull: false,
     },

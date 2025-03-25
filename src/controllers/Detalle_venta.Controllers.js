@@ -1,4 +1,4 @@
-import Detalle_Venta from '../models/Detalle_Venta.Model';
+import Detalle_Venta from '../models/Detalle_Venta.Model.js';
 export const getDetalleVenta = async (req, res) => {
     try {
         const detalle_venta = await Detalle_Venta.findAll();

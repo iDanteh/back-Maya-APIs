@@ -1,5 +1,5 @@
 import { Router } from "express";
-import {getTipoMovimiento,getTipoMovimientoById,registerTipoMovimiento,updateTipoMovimiento,deleteTipoMovimiento} from '../controllers/Tipo_movimiento.Controllers';
+import {getTipoMovimiento,getTipoMovimientoById,registerTipoMovimiento,updateTipoMovimiento,deleteTipoMovimiento} from '../controllers/Tipo_movimiento.Controllers.js';
 
 const router = Router();
 

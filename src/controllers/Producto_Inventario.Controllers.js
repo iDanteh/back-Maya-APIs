@@ -1,4 +1,4 @@
-import Producto_Inventario from "../models/Producto_Inventario.Model";
+import Producto_Inventario from "../models/Producto_Inventario.Model.js";
 
 export const getProductoInventario = async (req, res) => {
     try {
