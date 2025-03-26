@@ -18,6 +18,10 @@ Categoria.init({
         type: DataTypes.STRING(255),
         allowNull: true,
     },
+    descuento: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    }
 },
 {
     sequelize,

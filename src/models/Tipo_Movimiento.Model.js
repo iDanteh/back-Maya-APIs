@@ -9,10 +9,6 @@ Tipo_Movimiento.init({
         autoIncrement: true,
         primaryKey: true,
     },
-    nombre:{
-        type:DataTypes.STRING(255),
-        allowNull:false,
-    },
     descripcion:{
         type:DataTypes.STRING(255),
         allowNull:false,

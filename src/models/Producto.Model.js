@@ -20,7 +20,7 @@ Producto.init({
         allowNull: false,
     },
     gramaje: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING(50),
         allowNull: false,
     },
     precio_minimo: {
@@ -29,10 +29,6 @@ Producto.init({
     },
     precio_maximo: {
         type: DataTypes.DECIMAL(10, 2),
-        allowNull: false,
-    },
-    lote: {
-        type: DataTypes.STRING(50),
         allowNull: false,
     },
     categoria_id: {
@@ -55,9 +51,13 @@ Producto.init({
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
     },
-    fecha_caducidad: {
-        type: DataTypes.DATE,
-        allowNull: false,
+    presentacion: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+    },
+    sustancia_activa: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
     },
 },
 {

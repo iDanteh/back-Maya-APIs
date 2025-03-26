@@ -45,8 +45,8 @@ export const getCategoriasByname =async (req, res) => {
 
 export const registerCategoria = async(req,res) =>{
     try {
-        const {nombre,descripcion} = req.body;
-        const nuevaCategoria = await Categoria.create({nombre,descripcion});
+        const {nombre,descripcion, descuento } = req.body;
+        const nuevaCategoria = await Categoria.create({nombre,descripcion,descuento});
 
         return res.status(201).json({nuevaCategoria});
     } catch (error) {
@@ -74,9 +74,10 @@ export const updateCategoria = async(req, res)=>{
         if(!categorias){
             return res.status(404).json({ error: 'Categoria no encontrada'});
         }
-        const {nombre,descripcion} = req.body;
+        const {nombre,descripcion, descuento} = req.body;
         categorias.nombre = nombre;
         categorias.descripcion = descripcion;
+        categorias.descuento = descuento;
         await categorias.save();
         res.status(200).json({message:'Categoria actualizada'});
     } catch (error) {

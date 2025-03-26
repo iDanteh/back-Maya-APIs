@@ -41,6 +41,14 @@ Producto_Inventario.init({
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
     },
+    lote: {
+        type: DataTypes.STRING(45),
+        allowNull: false,
+    },
+    fecha_caducidad: {
+        type: DataTypes.DATE,
+        allowNull: false,
+    },
 },
 {
     sequelize,
