@@ -1,4 +1,5 @@
 import Sucursal from '../models/Sucursal.Model.js';
+import Inventario from '../models/Inventario.Model.js';
 import { Op } from 'sequelize'
 
 export const getSucursales = async (req, res) => {
@@ -12,20 +13,16 @@ export const getSucursales = async (req, res) => {
 
 export const getSucursalById = async (req, res) => {
     try {
-        try {
-            const sucursal = await Sucursal.findByPk(req.params.sucursal_id);
+        const sucursal = await Sucursal.findByPk(req.params.sucursal_id);
 
-            if (!sucursal) {
-                res.status(404).json({ error: 'Sucursal no encontrado' });
-            }
-
-            res.status(200).json(sucursal);
-        } catch (error) {
-            res.status(500).json({ error: 'Error al obtener el Sucursal' });
+        if (!sucursal) {
+            res.status(404).json({ error: 'Sucursal no encontrado' });
+            return;
         }
+
+        res.status(200).json(sucursal);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener el Sucursal' });
-        
     }
 };
 
@@ -48,14 +45,28 @@ export const getSucursalByName = async (req, res) => {
     }
 };
 
+// Crear una sucursal nueva y crear su inventario
 export const registerSucursal = async (req, res) => {
     try {
-        const {nombre, direccion, contraseña_sucursal} = req.body;
-        const newSucursal = await Sucursal.create({nombre, descripción, direccion, contraseña_sucursal});
+        const {sucursal_id, nombre, direccion, contraseña_sucursal} = req.body;
 
-        return res.status(201).json({ newSucursal });
+        const sucursalExist = await Sucursal.findOne({ where: {sucursal_id} });
+        if (sucursalExist) {
+            return res.status(409).json({ error: 'La sucursal ya existe o el ID está en uso' });
+        }
+
+        // Crear la sucursal
+        const newSucursal = await Sucursal.create({sucursal_id, nombre, direccion, contraseña_sucursal});
+        // console.log('Sucursal creada', newSucursal);
+
+        // Crear el inventario de la sucursal
+        const newInventario = await Inventario.create({sucursal_id: newSucursal.sucursal_id});
+        // console.log('Inventario creado', newInventario);
+
+        return res.status(201).json({ newSucursal, newInventario });
     } catch (error) {
-        return res.status(500).json({ error: 'Error al registrar el Sucursal' });
+        console.log('Error al registrar la sucursal:', error);
+        res.status(500).json({ error: error.message });
     }
 };
 

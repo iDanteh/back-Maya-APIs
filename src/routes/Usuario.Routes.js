@@ -1,8 +1,13 @@
 import { Router } from 'express';
-import { getUsuarios } from '../controllers/Usuario.Controllers.js';
+import { getUsuarios, getUsuarioById, getUsuarioByName, registerUser, updateUser, deleteUser } from '../controllers/Usuario.Controllers.js';
 
 const router = Router();
 
 router.get('/api/v1/usuarios', getUsuarios);
+router.get('/api/v1/usuarios/:usuario_id', getUsuarioById);
+router.get('/api/v1/usuarios/nombre', getUsuarioByName);
+router.post('/api/v1/usuarios', registerUser);
+router.put('/api/v1/usuarios/:usuario_id', updateUser);
+router.delete('/api/v1/usuarios/:usuario_id', deleteUser);
 
 export default router;

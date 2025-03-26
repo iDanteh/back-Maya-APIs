@@ -11,16 +11,6 @@ Categoria.init({
         autoIncrement: true,
         primaryKey: true,
     },
-    sucursal_id: {
-        type: DataTypes.STRING(10),
-        allowNull: false,
-        references: {
-            model: Sucursal,
-            key: 'sucursal_id',
-        },
-        onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-    },
     nombre: {
         type: DataTypes.STRING(255),
         allowNull: false,
@@ -58,9 +48,19 @@ Categoria.init({
         allowNull: false,
     },
     clave_acceso: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(5),
         allowNull: false,
         unique: true,
+    },
+    sucursal_id: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        references: {
+            model: Sucursal,
+            key: 'sucursal_id',
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
     },
 },
 {
