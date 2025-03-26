@@ -24,8 +24,8 @@ export const getTipoMovimientoById = async (req, res) =>{
 
 export const registerTipoMovimiento = async(req,res) =>{
     try {
-        const {nombre,descripcion,factor} = req.body;
-        const nuevoTipoMovimiento = await Categoria.create({nombre,descripcion,factor});
+        const {descripcion,factor} = req.body;
+        const nuevoTipoMovimiento = await Categoria.create({descripcion,factor});
 
         return res.status(201).json({nuevoTipoMovimiento: nuevoTipoMovimiento});
     } catch (error) {
@@ -53,8 +53,7 @@ export const updateTipoMovimiento = async(req, res)=>{
         if(!tiposMovimientos){
             return res.status(404).json({ error: 'Tipo de movimiento no encontrado'});
         }
-        const {nombre,descripcion,factor} = req.body;
-        tiposMovimientos.nombre = nombre;
+        const {descripcion,factor} = req.body;
         tiposMovimientos.descripcion = descripcion;
         tiposMovimientos.factor = factor;
         await tiposMovimientos.save();
