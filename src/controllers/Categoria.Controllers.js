@@ -16,6 +16,7 @@ export const getCategoriasById = async (req, res) =>{
 
         if(!categoria){
             res.status(404).json({ error: 'categoria no encontrada'});
+            return;
         }
         res.status(500).json({error: 'Error al obtener la categoria'});
     } catch (error) {
