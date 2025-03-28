@@ -2,10 +2,10 @@ import { Model, DataTypes} from 'sequelize';
 import Sucursal from './Sucursal.Model.js';
 import sequelize from '../database/conexion.js';
 
-// Clase para crear la tabla de categorias
-class Categoria extends Model {}
+// Clase para crear la tabla de Usuarios
+class Usuario extends Model {}
 
-Categoria.init({
+Usuario.init({
     usuario_id:{
         type: DataTypes.INTEGER,
         autoIncrement: true,
@@ -28,11 +28,8 @@ Categoria.init({
         allowNull: true,
     },
     rol: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.ENUM('administrador', 'trabajador'),
         allowNull: false,
-        validate: {
-            isIn: [['administrador', 'trabajador']]
-        },
     },
     turno: {
         type: DataTypes.STRING(255),
@@ -78,4 +75,4 @@ sequelize.sync().then(() => {
     console.log('Error al crear la tabla de usuario');
 });
 
-export default Categoria;
+export default Usuario;

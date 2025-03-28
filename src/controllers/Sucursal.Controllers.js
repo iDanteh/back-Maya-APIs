@@ -40,6 +40,7 @@ export const getSucursalByName = async (req, res) => {
         if (!sucursales.length) {
             return res.json([]);
         }
+        res.status(200).json(sucursales);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener el Sucursal' });
     }
