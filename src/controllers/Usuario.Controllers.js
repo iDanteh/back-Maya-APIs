@@ -1,19 +1,21 @@
 import Usuario from '../models/Usuario.Model.js';
-import { Op } from 'sequelize';
+import { UsuarioRepository } from '../repositories/UsuarioRepository.js'
+
+const usuarioRepo = new UsuarioRepository(Usuario);
 
 export const getUsuarios = async (req, res) => {
     try {
-        const usuarios = await Usuario.findAll();
+        const usuarios = await usuarioRepo.findAll();
         res.status(200).json(usuarios);
     } catch (error) {
-        res.status(500).json({ error: 'Error al obtener los usuarios' });
+        res.status(500).json({ error: error.message });
         return;
     }
 };
 
 export const getUsuarioById = async (req, res) => {
     try {
-        const usuario = await Usuario.findByPk(req.params.usuario_id);
+        const usuario = await usuarioRepo.findById(req.params.usuario_id);
 
         if (!usuario) {
             res.status(404).json({ error: 'usuario no encontrado' });
@@ -30,35 +32,52 @@ export const getUsuarioById = async (req, res) => {
 export const getUsuarioByName = async (req, res) => {
     try {
         const { nombre } = req.query;
-
-        const usuarios = await Usuario.findAll({
-            where: {
-                nombre: {
-                    [Op.like]: `%${nombre}%`
-                }
-            }
-        });
-        if (!usuarios.length) {
-            return res.json([]);
+        
+        if (!nombre) {
+            return res.status(400).json({ 
+                error: 'El parámetro "nombre" es requerido' 
+            });
         }
+
+        const usuarios = await usuarioRepo.searchByName(nombre);
+
+        res.status(200).json(usuarios);
     } catch (error) {
-        res.status(500).json({ error: 'Error al obtener el usuario' });
-        return;
+        res.status(500).json({ 
+            error: 'Error al buscar usuarios',
+        });
     }
 };
 
 export const registerUser = async (req, res) => {
     try {
         const rol = "trabajador";
-        const { nombre, apellido, telefono, email, turno, usuario, clave_acceso, sucursal_id} = req.body;
+        const userData = { ...req.body, rol };
 
-        const emailExist = await Usuario.findOne({ where: { email } });
+        const emailExist = await usuarioRepo.findByEmail(userData.email);
         if (emailExist) {
-            return res.status(409).json({ error: 'El email ya está en uso' });
+            return res.status(400).json({ error: 'El email ya existe' });
         }
 
-        const newUser = await Usuario.create({ nombre, apellido, telefono, email, rol, turno, usuario, clave_acceso, sucursal_id });
-        return res.status(201).json({ newUser });
+        const newUser = await usuarioRepo.create(userData);
+        res.status(201).json(newUser);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const registerAdmin = async (req, res) => {
+    try {
+        const rol = "administrador";
+        const userData = { ...req.body, rol };
+
+        const emailExist = await usuarioRepo.findByEmail(userData.email);
+        if (emailExist) {
+            return res.status(400).json({ error: 'El email ya existe' });
+        }
+
+        const newUser = await usuarioRepo.createAdmin(userData);
+        res.status(201).json(newUser);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -66,32 +85,23 @@ export const registerUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
     try {
-        const { usuario_id } = req.params;
-        const { sucursal_id, nombre, apellido, telefono, email, rol, turno, usuario, clave_acceso } = req.body;
-
-        const user = await Usuario.findByPk(usuario_id);
-        if (!user) {
+        const updateUser = await usuarioRepo.update(req.params.usuario_id, req.body);
+        if (!updateUser) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
-
-        await Usuario.update({ sucursal_id, nombre, apellido, telefono, email, rol, turno, usuario, clave_acceso }, { where: { usuario_id } });
-        return res.status(200).json({ message: 'Usuario actualizado' });
+        res.status(200).json(updateUser);
     } catch (error) {
-        res.status(500).json({ error: 'Error al actualizar el usuario' });
+        res.status(500).json({ error: error.message });
     }
 };
 
 export const deleteUser = async (req, res) => {
     try {
-        const { usuario_id } = req.params;
-
-        const user = await Usuario.findByPk(usuario_id);
-        if (!user) {
+        const success = await usuarioRepo.delete(req.params.usuario_id);
+        if (!success) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
-
-        await Usuario.destroy({ where: { usuario_id } });
-        return res.status(200).json({ message: 'Usuario eliminado' });
+        res.status(200).json({ message: 'Usuario eliminado correctamente' });
     } catch (error) {
         res.status(500).json({ error: 'Error al eliminar el usuario' });
     }

@@ -21,6 +21,10 @@ Categoria.init({
     descuento: {
         type: DataTypes.INTEGER,
         allowNull: true,
+    },
+    dia_descuento: {
+        type: DataTypes.ENUM('LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'),
+        allowNull: true
     }
 },
 {
