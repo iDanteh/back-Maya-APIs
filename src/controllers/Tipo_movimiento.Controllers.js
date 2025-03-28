@@ -17,7 +17,7 @@ export const getTipoMovimientoById = async (req, res) =>{
             res.status(404).json({ error: 'tipo de movimiento no encontrado'});
             return;
         }
-        res.status(500).json({error: 'Error al obtener el tipo de movimiento'});
+        res.status(200).json(tipoMovimiento);
     } catch (error) {
         res.status(500).json({error:'Error al obtener el tipo de movimiento'});
     }

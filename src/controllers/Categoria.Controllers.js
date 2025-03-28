@@ -18,29 +18,29 @@ export const getCategoriasById = async (req, res) =>{
             res.status(404).json({ error: 'categoria no encontrada'});
             return;
         }
-        res.status(500).json({error: 'Error al obtener la categoria'});
+        res.status(200).json(categoria);
     } catch (error) {
         res.status(500).json({error:'Error al obtener la categoria'});
     }
 };
 
-export const getCategoriasByname =async (req, res) => {
+export const getCategoriasByname = async (req, res) => {
     try {
-        const {nombre} = req.query;
+        const { nombre } = req.query;
 
         const categorias = await Categoria.findAll({
-            where:{
-                nombre:{
+            where: {
+                nombre: {
                     [Op.like]: `%${nombre}%`
                 }
             }
-        });
-        if(!categorias.length){
+        })
+        if (!categorias.length) {
             return res.json([]);
         }
+        res.status(200).json(categorias);
     } catch (error) {
-        console.error('Error al buscar categorias: ',error);
-        res.status(500).json({ message: 'Error interno del servidor'});
+        res.status(500).json({ error: 'Error al obtener la categoria' });
     }
 };
 
