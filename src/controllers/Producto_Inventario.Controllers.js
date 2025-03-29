@@ -65,11 +65,8 @@ export const addMultipleProductsToInventory = async (req, res) => {
             inventario_id
         }));
 
-        const createdProducts = await repoProductoInventario.bulkCreateProductsInInventory(inventario_id, productsData);
-        res.status(201).json({
-            message: `${createdProducts.length} productos agregados al inventario`,
-            products: createdProducts
-        });
+        const createOrUpdateProducts = await repoProductoInventario.bulkCreateProductsInInventory(inventario_id, productsData);
+        res.status(201).json({ message: 'Productos agregados correctamente', data: createOrUpdateProducts });
     } catch (error) {
         res.status(500).json({ 
             error: 'Error al agregar múltiples productos al inventario',

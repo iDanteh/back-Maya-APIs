@@ -22,23 +22,56 @@ export class producto_inventarioRepository {
     }
 
     async createProductInInventory(inventario_id, productData) {
-        return await this.model.create(...productData, inventario_id);
+        const existingLot = await this.model.findOne({
+            where: { inventario_id, codigo_barras: productData.codigo_barras, lote: productData.lote }
+        });
+
+        if (existingLot) {
+            // Si existe, sumar existencias
+            return await existingLot.update({
+                existencias: existingLot.existencias + productData.existencias,
+                fecha_ultima_actualizacion: new Date()
+            });
+        } else {
+            // Si no existe, crear nuevo
+            return await this.model.create({
+                ...productData,
+                inventario_id
+            });
+        }
     }
     
     async bulkCreateProductsInInventory(inventario_id, productsData) {
-        const productsWithInventory = productsData.map(product => ({
-            ...product,
-            inventario_id // Asegura que todos tengan el mismo inventario_id
-        }));
-        return await this.model.bulkCreate(productsWithInventory);
+        const transaction = await this.model.sequelize.transaction();
+
+        try {
+            const results = [];
+            
+            for (const product of productsData) {
+                // Reutilizamos la lógica del create individual
+                const result = await this.createProductInInventory(inventario_id, product, { transaction });
+                results.push(result);
+            }
+            
+            await transaction.commit();
+            return results;
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
     }
     
 
     // Nuevo método para actualizar existencias
     async updateStock(inventario_id, codigo_barras, lote, nuevasExistencias) {
         return await this.model.update(
-            { existencias: nuevasExistencias },
-            { where: { inventario_id, codigo_barras, lote: lote } }
+            { 
+                existencias: sequelize.literal(`existencias + ${nuevasExistencias}`),
+                fecha_ultima_actualizacion: new Date()
+            },
+            { 
+                where: { inventario_id, codigo_barras, lote } 
+            }
         );
     }
 
