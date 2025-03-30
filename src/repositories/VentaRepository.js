@@ -102,10 +102,6 @@ export class VentaRepository {
     async getVentasBySucursal(sucursal_id) {
         return await this.ventaModel.findAll({
             where: { sucursal_id },
-            include: [{
-                model: this.detalleVentaModel,
-                as: 'detalles'
-            }],
             order: [['fecha_venta', 'DESC']]
         });
     }
@@ -114,37 +110,39 @@ export class VentaRepository {
         const transaction = await this.ventaModel.sequelize.transaction();
         
         try {
+            // Obtener venta con detalles usando la asociación
             const venta = await this.ventaModel.findByPk(venta_id, {
                 include: [{
                     model: this.detalleVentaModel,
-                    as: 'detalles'
+                    as: 'detalles',
+                    required: true
                 }],
                 transaction
             });
-
+    
             if (!venta) throw new Error('Venta no encontrada');
             if (venta.anulada) throw new Error('La venta ya está anulada');
-
+    
             const inventario = await this.inventarioModel.findOne({
                 where: { sucursal_id: venta.sucursal_id },
                 transaction
             });
-
+    
             if (!inventario) throw new Error('Inventario no encontrado');
-
-            // Reintegrar por lote específico
+    
+            // Iterar sobre detalles
             for (const detalle of venta.detalles) {
                 await this.productoInventarioModel.increment('existencias', {
                     by: detalle.cantidad,
                     where: { 
                         codigo_barras: detalle.codigo_barras,
                         inventario_id: inventario.inventario_id,
-                        lote: detalle.lote
+                        lote: detalle.lote || 'DEFAULT' // Usar valor por defecto si es null
                     },
                     transaction
                 });
             }
-
+    
             await venta.update({ anulada: true }, { transaction });
             await transaction.commit();
             return venta;

@@ -1,6 +1,7 @@
 export class producto_inventarioRepository {
-    constructor(model) {
+    constructor(model, movimientoRepo) {
         this.model = model;
+        this.movimientoRepo = movimientoRepo;
     }
 
     async findAll() {
@@ -21,24 +22,47 @@ export class producto_inventarioRepository {
         });
     }
 
-    async createProductInInventory(inventario_id, productData) {
+    async createProductInInventory(inventario_id, productData, transactionOptions = {}) {
+        const transaction = transactionOptions.transaction;
+
         const existingLot = await this.model.findOne({
-            where: { inventario_id, codigo_barras: productData.codigo_barras, lote: productData.lote }
+            where: { inventario_id, codigo_barras: productData.codigo_barras, lote: productData.lote },
+            transaction
         });
 
+        let result;
         if (existingLot) {
-            // Si existe, sumar existencias
-            return await existingLot.update({
+            result = await existingLot.update({
                 existencias: existingLot.existencias + productData.existencias,
                 fecha_ultima_actualizacion: new Date()
-            });
+            }, { transaction });
+
+            // Registrar movimiento de ENTRADA
+            await this.movimientoRepo.createMovimiento(
+                existingLot.producto_inventario_id,
+                'Entrada',
+                productData.existencias,
+                'Reabastecimiento de inventario',
+                `Lote: ${productData.lote}`,
+                { transaction }
+            );
         } else {
-            // Si no existe, crear nuevo
-            return await this.model.create({
+            result = await this.model.create({
                 ...productData,
                 inventario_id
-            });
+            }, { transaction });
+
+            // Registrar movimiento de ENTRADA
+            await this.movimientoRepo.createMovimiento(
+                result.producto_inventario_id,
+                'Entrada',
+                productData.existencias,
+                'Nuevo lote ingresado',
+                `Lote: ${productData.lote}`,
+                { transaction }
+            );
         }
+        return result;
     }
     
     async bulkCreateProductsInInventory(inventario_id, productsData) {
@@ -63,16 +87,37 @@ export class producto_inventarioRepository {
     
 
     // Nuevo método para actualizar existencias
-    async updateStock(inventario_id, codigo_barras, lote, nuevasExistencias) {
-        return await this.model.update(
-            { 
-                existencias: sequelize.literal(`existencias + ${nuevasExistencias}`),
-                fecha_ultima_actualizacion: new Date()
-            },
-            { 
-                where: { inventario_id, codigo_barras, lote } 
-            }
-        );
+    async updateStock(inventario_id, codigo_barras, lote, cantidad) {
+        const transaction = await this.model.sequelize.transaction();
+        try {
+            const producto = await this.model.findOne({
+                where: { inventario_id, codigo_barras, lote },
+                transaction
+            });
+
+            if (!producto) throw new Error('Producto no encontrado');
+
+            await producto.update(
+                { existencias: sequelize.literal(`existencias + ${cantidad}`) },
+                { transaction }
+            );
+
+            // Registrar movimiento de AJUSTE
+            await this.movimientoRepo.createMovimiento(
+                producto.producto_inventario_id,
+                cantidad > 0 ? 'Entrada' : 'Salida',
+                Math.abs(cantidad),
+                'Ajuste de inventario',
+                `Ajuste manual: ${cantidad} unidades`,
+                { transaction }
+            );
+
+            await transaction.commit();
+            return producto;
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
     }
 
     // Método para eliminar un lote de un producto en un inventario

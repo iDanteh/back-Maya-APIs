@@ -48,11 +48,6 @@ export const createVenta = async (req, res) => {
     }
 };
 
-
-
-// Los demás métodos (getVenta, getVentasBySucursal, anularVenta) permanecen igual
-// 
-
 export const getVenta = async (req, res) => {
     try {
         const { venta_id } = req.params;
@@ -86,11 +81,23 @@ export const anularVenta = async (req, res) => {
         
         res.json({
             message: 'Venta anulada exitosamente',
-            venta: ventaAnulada
+            venta: {
+                venta_id: ventaAnulada.venta_id,
+                anulada: ventaAnulada.anulada,
+                detalles: ventaAnulada.detalles.map(d => ({
+                    detalle_venta_id: d.detalle_venta_id,
+                    codigo_barras: d.codigo_barras,
+                    lote: d.lote,
+                    cantidad: d.cantidad
+                }))
+            }
         });
         
     } catch (error) {
-        res.status(500).json({ 
+        const statusCode = error.message.includes('no encontrad') || 
+                         error.message.includes('ya está anulada') ? 400 : 500;
+        
+        res.status(statusCode).json({ 
             error: 'Error al anular la venta',
             details: error.message 
         });

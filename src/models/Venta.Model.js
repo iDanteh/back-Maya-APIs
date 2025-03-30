@@ -59,6 +59,13 @@ Venta.init({
     timestamps: false,
 });
 
+Venta.associate = (models) => {
+    Venta.hasMany(models.Detalle_Venta, {
+        foreignKey: 'venta_id',
+        as: 'detalles'
+    });
+};
+
 sequelize.sync().then(() => {
     console.log('Tabla de venta creada exitosamente');
 }).catch(error => {
