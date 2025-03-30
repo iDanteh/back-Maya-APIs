@@ -64,7 +64,7 @@ export class producto_inventarioRepository {
 
     // Nuevo método para actualizar existencias
     async updateStock(inventario_id, codigo_barras, lote, nuevasExistencias) {
-        return await this.model.update(
+        /*return await this.model.update(
             { 
                 existencias: sequelize.literal(`existencias + ${nuevasExistencias}`),
                 fecha_ultima_actualizacion: new Date()
@@ -72,7 +72,47 @@ export class producto_inventarioRepository {
             { 
                 where: { inventario_id, codigo_barras, lote } 
             }
+        );*/
+        const transaction = await this.model.sequelize.transaction();
+    
+    try {
+        /**Actualizar el stock */
+        const [affectedRows] = await this.model.update(
+            { 
+                existencias: sequelize.literal(`existencias + ${nuevasExistencias}`),
+                fecha_ultima_actualizacion: new Date()
+            },
+            { 
+                where: { inventario_id, codigo_barras, lote },
+                transaction
+            }
         );
+        
+        if (affectedRows > 0) {
+            // Registrar el movimiento
+            const producto = await this.model.findOne({
+                where: { inventario_id, codigo_barras, lote },
+                transaction
+            });
+            
+            /**movimiento entrada o salida */
+            const tipo_movimiento_id = nuevasExistencias > 0 ? 1 : 2; /* 1=entrada, 2=salida*/
+            
+            await Movimiento_Inventario.create({
+                producto_inventario_id: producto.producto_inventario_id,
+                tipo_movimiento_id,
+                cantidad: Math.abs(nuevasExistencias),
+                referencia: 'Ajuste de inventario',
+                observaciones: `Ajuste manual de existencias`
+            }, { transaction });
+        }
+        
+        await transaction.commit();
+        return affectedRows;
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
     }
 
     // Método para eliminar un lote de un producto en un inventario
