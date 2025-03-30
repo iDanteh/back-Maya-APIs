@@ -1,7 +1,7 @@
 import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
-import { movimiento_inventarioRepository } from '../repositories/Movimiento_Inventario.Repository.js';
+import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js';
 
-const repoMovimientoInventario = new movimiento_inventarioRepository(Movimiento_Inventario);
+const repoMovimientoInventario = new MovimientoInventarioRepository(Movimiento_Inventario);
 
 export const getMovimientos = async (req, res) => {
     try {

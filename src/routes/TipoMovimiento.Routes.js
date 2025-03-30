@@ -16,7 +16,7 @@ import {
     registerTipoMovimiento,
     updateTipoMovimiento,
     deleteTipoMovimiento
-} from '../controllers/Tipo_MovimientoController.js';
+} from '../controllers/Tipo_movimiento.Controllers.js';
 
 const router = Router();
 

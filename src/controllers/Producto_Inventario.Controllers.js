@@ -1,7 +1,11 @@
 import Producto_Inventario from "../models/Producto_Inventario.Model.js";
 import { producto_inventarioRepository } from '../repositories/Producto_InventarioRepository.js'
+import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
+import Tipo_Movimiento from '../models/Tipo_Movimiento.Model.js';
+import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js'
 
-const repoProductoInventario = new producto_inventarioRepository(Producto_Inventario);
+const movimientoRepo = new MovimientoInventarioRepository(Movimiento_Inventario ,Tipo_Movimiento);
+const repoProductoInventario = new producto_inventarioRepository(Producto_Inventario, movimientoRepo);
 
 export const getProductoInventario = async (req, res) => {
     try {
@@ -42,7 +46,6 @@ export const addProductToInventory = async (req, res) => {
         const { inventario_id } = req.params;
         const productData = {
             ...req.body,
-            fecha_ultima_actualizacion: new Date(), // Actualizar la fecha automáticamente
             inventario_id
         };
 

@@ -13,7 +13,7 @@ router.post('/api/v1/ventas', createVenta);
 router.get('/api/v1/ventas/:venta_id', getVenta);
 
 // Obtener ventas por sucursal
-router.get('/api/v1/sucursales/:sucursal_id/ventas', getVentasBySucursal);
+router.get('/api/v1/ventas/:sucursal_id/sucursal', getVentasBySucursal);
 
 // Anular una venta
 router.put('/api/v1/ventas/:venta_id/anular', anularVenta);
