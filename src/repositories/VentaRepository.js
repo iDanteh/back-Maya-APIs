@@ -1,15 +1,13 @@
-import Producto_Inventario from '../models/Producto_Inventario.Model.js';
-import Detalle_Venta from '../models/Detalle_Venta.Model.js';
-import Venta from '../models/Venta.Model.js';
 import { Op, where } from 'sequelize';
 import sequelize from '../database/conexion.js';
 
 export class VentaRepository {
-    constructor(ventaModel, detalleVentaModel, productoInventarioModel, inventarioModel) {
+    constructor(ventaModel, detalleVentaModel, productoInventarioModel, inventarioModel, movimientoInventarioModel) {
         this.ventaModel = ventaModel;
         this.detalleVentaModel = detalleVentaModel;
         this.productoInventarioModel = productoInventarioModel;
         this.inventarioModel = inventarioModel;
+        this.movimientoInventarioModel = movimientoInventarioModel;
     }
 
     async createVentaWithDetails(ventaData, detallesVenta) {
@@ -88,6 +86,15 @@ export class VentaRepository {
             },
             transaction
         });
+
+        // 4. Registra el movimiento del inventario
+        await this.movimientoInventarioModel.create({
+            producto_inventario_id: productoInventario.producto_inventario_id,
+            tipo_movimiento_id: 5,
+            cantidad,
+            referencia: productoInventario.lote,
+            observaciones: 'Venta de productos',
+        }, { transaction });
     }
 
     async getVentaById(venta_id) {
@@ -108,48 +115,30 @@ export class VentaRepository {
 
     async anularVenta(venta_id) {
         const transaction = await this.ventaModel.sequelize.transaction();
-        
-        try {
-            // Obtener venta con detalles usando la asociación
-            const venta = await this.ventaModel.findByPk(venta_id, {
-                include: [{
-                    model: this.detalleVentaModel,
-                    as: 'detalles',
-                    required: true
-                }],
-                transaction
-            });
-    
-            if (!venta) throw new Error('Venta no encontrada');
-            if (venta.anulada) throw new Error('La venta ya está anulada');
-    
-            const inventario = await this.inventarioModel.findOne({
-                where: { sucursal_id: venta.sucursal_id },
-                transaction
-            });
-    
-            if (!inventario) throw new Error('Inventario no encontrado');
-    
-            // Iterar sobre detalles
-            for (const detalle of venta.detalles) {
-                await this.productoInventarioModel.increment('existencias', {
-                    by: detalle.cantidad,
-                    where: { 
-                        codigo_barras: detalle.codigo_barras,
-                        inventario_id: inventario.inventario_id,
-                        lote: detalle.lote || 'DEFAULT' // Usar valor por defecto si es null
-                    },
-                    transaction
-                });
-            }
-    
-            await venta.update({ anulada: true }, { transaction });
-            await transaction.commit();
-            return venta;
-            
-        } catch (error) {
-            await transaction.rollback();
-            throw error;
+    try {
+        // 1. Obtener solo la venta (sin detalles)
+        const venta = await this.ventaModel.findByPk(venta_id, { transaction });
+
+        if (!venta) {
+            throw new Error('Venta no encontrada');
         }
+
+        if (venta.anulada) {
+            throw new Error('La venta ya está anulada');
+        }
+
+        // 2. Simplemente marcar como anulada
+        await venta.update({ 
+            anulada: true,
+        }, { transaction });
+
+        await transaction.commit();
+        return venta;
+
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
     }
-}
+    }
+};
+
