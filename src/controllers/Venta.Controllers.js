@@ -4,6 +4,7 @@ import Producto_Inventario from '../models/Producto_Inventario.Model.js';
 import Inventario from '../models/Inventario.Model.js'
 import { VentaRepository } from '../repositories/VentaRepository.js';
 import MovimientoInventario from '../models/Movimiento_Inventario.Model.js';
+import Producto from '../models/Producto.Model.js';
 
 const ventaRepository = new VentaRepository(Venta, Detalle_Venta, Producto_Inventario, Inventario, MovimientoInventario);
 
@@ -104,7 +105,7 @@ export const getVentasByFecha = async (req, res) => {
     }
 };
 
-export const anularVenta= async (req, res) => {
+export const anularVenta = async (req, res) => {
     try {
         const { venta_id } = req.params;
         
@@ -112,15 +113,19 @@ export const anularVenta= async (req, res) => {
             return res.status(400).json({ error: 'Se requiere el ID de la venta' });
         }
 
-        const ventaAnulada = await ventaRepository.anularVenta(venta_id);
-
-        res.json({
-            message: 'Venta anulada exitosamente (sin reversión de inventario)',
-            venta: ventaAnulada
+        // Anular la venta y reintegrar existencias
+        const resultado = await ventaRepository.anularVenta(venta_id);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Venta anulada exitosamente',
+            data: resultado
         });
-
+        
     } catch (error) {
-        const statusCode = error.message.includes('no encontrada') || 
+        console.error('Error en anularVenta:', error);
+        
+        const statusCode = error.message.includes('no encontrada') ? 404 : 
                           error.message.includes('ya está anulada') ? 400 : 500;
         
         res.status(statusCode).json({ 
