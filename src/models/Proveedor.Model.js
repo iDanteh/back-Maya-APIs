@@ -14,10 +14,6 @@ Proveedor.init({
         type: DataTypes.STRING(255),
         allowNull: false,
     },
-    contacto: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-    },
     telefono: {
         type: DataTypes.STRING(255),
         allowNull: true,

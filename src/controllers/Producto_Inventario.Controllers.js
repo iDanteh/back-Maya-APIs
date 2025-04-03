@@ -61,15 +61,16 @@ export const addProductToInventory = async (req, res) => {
 
 export const addMultipleProductsToInventory = async (req, res) => {
     try {
-        const { inventario_id } = req.params;
-        const productsData = req.body.map(product => ({
-            ...product,
-            fecha_ultima_actualizacion: new Date(), // Actualizar la fecha automáticamente
-            inventario_id
-        }));
 
-        const createOrUpdateProducts = await repoProductoInventario.bulkCreateProductsInInventory(inventario_id, productsData);
-        res.status(201).json({ message: 'Productos agregados correctamente', data: createOrUpdateProducts });
+        const { inventario_id } = req.params;
+        const productsData = req.body.productos; // Accede correctamente a los productos
+
+        if (!Array.isArray(productsData)) {
+            return res.status(400).json({ error: "El campo 'productos' debe ser un array." });
+        }
+
+        const result = await repoProductoInventario.bulkCreateProductsInInventory(inventario_id, productsData);
+        res.status(201).json({ message: 'Productos procesados correctamente', data: result });
     } catch (error) {
         res.status(500).json({ 
             error: 'Error al agregar múltiples productos al inventario',
@@ -78,39 +79,20 @@ export const addMultipleProductsToInventory = async (req, res) => {
     }
 };
 
-export const updateStock = async (req, res) => {
-    try {
-        const { inventario_id, codigo_barras, lote } = req.params;
-        const { existencias } = req.body;
-        
-        const result = await repoProductoInventario.updateStock(inventario_id, codigo_barras, lote, existencias);
-        
-        if (result[0] === 0) {
-            return res.status(404).json({ message: 'Producto no encontrado en este inventario o datos sin cambios' });
-        }
-        
-        res.json({ message: 'Existencias actualizadas correctamente' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
 
 export const deleteLot = async (req, res) => {
     try {
-        const { inventario_id, codigo_barras, existencias, lote } = req.params;
-        
-        // Verificar si el lote tiene existencias antes de eliminarlo
-        if( existencias != 0 ){
-            return res.status(400).json({ message: 'No se puede eliminar un lote con existencias' });
-        }
+        const { inventario_id, codigo_barras, lote } = req.params;
         const result = await repoProductoInventario.deleteLot(inventario_id, codigo_barras, lote);
-        
-        if (result === 0) {
-            return res.status(404).json({ message: 'Lote no encontrado en este inventario' });
-        }
-        
         res.json({ message: 'Lote eliminado correctamente' });
     } catch (error) {
+        // Mejoraría el manejo de diferentes tipos de errores
+        if (error.message.includes('No se puede eliminar')) {
+            return res.status(400).json({ error: error.message });
+        }
+        if (error.message.includes('no encontrado')) {
+            return res.status(404).json({ error: error.message });
+        }
         res.status(500).json({ error: error.message });
     }
 };
