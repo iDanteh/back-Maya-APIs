@@ -51,8 +51,8 @@ export const getProveedorByName = async (req, res) => {
 
 export const registerProveedor = async (req, res) => {
     try {
-        const {nombre, contacto, teléfono, email, descripción} = req.body;
-        const newProveedor = await Proveedor.create({nombre, contacto, teléfono, email, descripción});
+        const {nombre, telefono, email, descripcion} = req.body;
+        const newProveedor = await Proveedor.create({nombre, telefono, email, descripcion});
 
         return res.status(201).json({ newProveedor });
     } catch (error) {
@@ -67,12 +67,12 @@ export const updateProveedor = async (req, res) => {
             return res.status(404).json({error: 'Proveedor no encontrado'});
         }
 
-        const {nombre, contacto, teléfono, email, descripción} = req.body;
+        const {nombre, telefono, email, descripcion} = req.body;
         proveedor.nombre = nombre;
-        proveedor.contacto = contacto;
-        proveedor.teléfono = teléfono;
+        proveedo ;
+        proveedor.telefono = telefono;
         proveedor.email = email;
-        proveedor.descripción = descripción;
+        proveedor.descripcion = descripcion;
         await proveedor.save();
         res.status(200).json({message: 'Proveedor actualizado'});
     } catch (error) {

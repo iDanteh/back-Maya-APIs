@@ -1,13 +1,12 @@
 import { Router } from "express";
 import { getProductoInventario, getProductsByInventory, 
-    searchProduct, updateStock, deleteLot,
+    searchProduct, deleteLot,
     addMultipleProductsToInventory, addProductToInventory} from "../controllers/Producto_Inventario.Controllers.js";
 
 const router = Router();
 router.get('/api/v1/productoInventario',getProductoInventario);
 router.get('/api/v1/productoInventario/:inventario_id', getProductsByInventory)
 router.get('/api/v1/productoInventario/:inventario_id/producto/:codigo_barras', searchProduct)
-router.put('/api/v1/productoInventario/:inventario_id/producto/:codigo_barras/:lote/stock', updateStock)
 router.delete('/api/v1/productoInventario/:inventario_id/producto/:codigo_barras/:lote', deleteLot)
 
 router.post('/api/v1/productoInventario/:inventario_id/load', addProductToInventory);
