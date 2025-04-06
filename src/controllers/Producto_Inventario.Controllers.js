@@ -96,3 +96,15 @@ export const deleteLot = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+export const updateProductData = async (req, res) => {
+    try {
+        const updateProduct = await repoProductoInventario.update(req.params.producto_inventario_id, req.body);
+        if (!updateProduct) {
+            return res.status(400).json({ error: 'Producto no encontrado'});
+        }
+        res.status(200).json(updateProduct);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
