@@ -38,6 +38,16 @@ export class UsuarioRepository {
         return true;
     }
 
+    async sucursalAccess(usuario, clave_acceso, sucursal_id) {
+        return await this.model.findOne({
+            where: {
+                usuario: usuario,
+                clave_acceso: clave_acceso,
+                sucursal_id: sucursal_id
+            }
+        });
+    }
+
     async searchByName(name) {
         if (!name || name.trim() === '') {
             return [];

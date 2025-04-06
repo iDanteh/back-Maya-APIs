@@ -149,6 +149,12 @@ export class producto_inventarioRepository {
         return await lot.destroy();
     }
 
+    async update(producto_inventario_id, productData) {
+        const product = await this.model.findByPk(producto_inventario_id);
+        if (!product) return null;
+        return await product.update(productData);
+    }
+
     // async transferProduct(source_inventario_id, target_inventario_id, codigo_barras, lote, cantidad, motivo) {
     //     const transaction = await this.model.sequelize.transaction();
     //     try {

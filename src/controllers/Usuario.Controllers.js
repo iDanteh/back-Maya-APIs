@@ -106,3 +106,17 @@ export const deleteUser = async (req, res) => {
         res.status(500).json({ error: 'Error al eliminar el usuario' });
     }
 };
+
+export const sucursalAccess = async (req, res) => {
+    try {
+        const { usuario, clave_acceso, sucursal_id } = req.body;
+        const access = await usuarioRepo.sucursalAccess(usuario, clave_acceso, sucursal_id);
+        if (!access) {
+            return res.status(404).json({ error: 'Acceso no permitido' });
+        }
+        res.status(200).json( { message: 'Acceso permitido', access});
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+        
+    }
+};
