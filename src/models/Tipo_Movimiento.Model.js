@@ -14,7 +14,7 @@ Tipo_Movimiento.init({
         allowNull:false,
     },
     factor: {
-        type: DataTypes.ENUM('Entrada', 'Salida', 'Venta', 'Anulación de venta'),
+        type: DataTypes.ENUM('Entrada', 'Salida', 'Venta', 'Anulación de venta', 'Actualizacion manual del inventario'),
         allowNull: false,
     },
 },
