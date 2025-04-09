@@ -1,0 +1,64 @@
+config:
+  target: http://localhost:5000/api/v1
+  phases:
+    - duration: 60      # Duración de la prueba (60 segundos)
+      arrivalRate: 5   # 10 solicitudes por segundo
+      name: "Prueba de estrés para endpoint de ventas"
+  processor: "./hooks.cjs"  # (Opcional) Para generar datos dinámicos
+
+scenarios:
+  - name: "Login de sucursal"
+    flow:
+      - post:
+          url: "/sucursales/login"
+          headers:
+            Content-Type: "application/json"
+          json:
+            nombre: "Maya 01"
+            contraseña_sucursal: "maya01"
+
+  - name: "Carga de inventario"
+    flow:
+      - post:
+          url: "/productoInventario/5/load"
+          headers:
+            Content-Type: "application/json"
+          json:
+            codigo_barras: "1111"
+            inventario_id: 5
+            existencias: 5
+            lote: "LOTE-2023-006"
+            fecha_caducidad: "2024-12-31T00:00:00.000Z"
+
+  - name: "Consulta de inventario"
+    flow:
+      - get:
+          url: "/productoInventario/5"
+          headers:
+            Content-Type: "application/json"
+
+  - name: "Registro de venta"
+    flow:
+      - post:
+          url: "/ventas"
+          headers:
+            Content-Type: "application/json"
+            Authorization: "Bearer token_de_ejemplo"  # Si tu API requiere autenticación
+          json:
+            sucursal_id: "MY1"
+            usuario_id: 8
+            total: 125.50
+            total_recibido: 150.00
+            detalles:
+              - codigo_barras: "1111"
+                lote: "LOTE-2023-006"
+                cantidad: 10
+                precio_unitario: 50.00
+                subtotal: 50.00
+                descuento: 0.00
+              - codigo_barras: "1112"
+                lote: "LOTE-2023-006"
+                cantidad: 1
+                precio_unitario: 7.00
+                subtotal: 77.00
+                descuento: 7.00
