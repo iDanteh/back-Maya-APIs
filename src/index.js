@@ -3,8 +3,15 @@ import { PORT } from './config.js'; // Importar el puerto desde el archivo confi
 import sequelize from './database/conexion.js'; // Importar la conexión a la base de datos
 import routes from './routes/index.js'; // Importar todas las rutas desde el archivo index.js
 import morgan from 'morgan'; // Importar morgan para ver las peticiones en consola
+import cors from 'cors'
 
 const app = express();
+
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(express.urlencoded({ extended: true })); 
 app.use(morgan('dev'));
