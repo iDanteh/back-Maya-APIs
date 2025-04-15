@@ -17,15 +17,15 @@ Usuario.init({
     },
     apellido: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        allowNull: true,
     },
     telefono: {
         type: DataTypes.STRING(20),
-        allowNull: false,
+        allowNull: true,
     },
     email: {
         type: DataTypes.STRING(255),
-        allowNull: true,
+        allowNull: false,
     },
     rol: {
         type: DataTypes.ENUM('administrador', 'trabajador'),
@@ -51,7 +51,7 @@ Usuario.init({
     },
     sucursal_id: {
         type: DataTypes.STRING(10),
-        allowNull: false,
+        allowNull: true,
         references: {
             model: Sucursal,
             key: 'sucursal_id',
@@ -68,6 +68,20 @@ Usuario.init({
     timestamps: false,
     fecha_ingreso: 'fecha_ingreso', // Para evitar error de que no existe la columna
 });
+
+Usuario.belongsTo(Sucursal, {
+    foreignKey: 'sucursal_id',
+    as: 'sucursal'
+});
+
+// Para administradores que pueden acceder a todas las sucursales
+Usuario.prototype.getSucursales = async function() {
+    if (this.rol === 'administrador') {
+        return await Sucursal.findAll();
+    } else {
+        return await this.getSucursal();
+    }
+};
 
 sequelize.sync().then(() => {
     console.log('Tabla de usuario creada exitosamente');
