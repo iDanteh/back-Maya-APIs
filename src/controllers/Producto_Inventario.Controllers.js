@@ -99,7 +99,7 @@ export const deleteLot = async (req, res) => {
 
 export const updateProductData = async (req, res) => {
     try {
-        const updateProduct = await repoProductoInventario.update(req.params.producto_sucursal_id, req.body);
+        const updateProduct = await repoProductoInventario.update(req.params.producto_inventario_id, req.body);
         if (!updateProduct) {
             return res.status(400).json({ error: 'Producto no encontrado'});
         }

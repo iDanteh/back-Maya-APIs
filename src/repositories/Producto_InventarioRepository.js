@@ -157,15 +157,15 @@ export class producto_inventarioRepository {
         return await lot.destroy();
     }
 
-    async update(producto_sucursal_id, productData) {
+    async update(producto_inventario_id, productData) {
         const transaction = await this.model.sequelize.transaction();
 
-        const product = await this.model.findByPk(producto_sucursal_id);
+        const product = await this.model.findByPk(producto_inventario_id);
         if (!product) return null;
 
         // Registra la información de la actualización
         await this.movimientoRepo.createMovimiento(
-            product.producto_sucursal_id,
+            product.producto_inventario_id,
             'Actualizacion manual del inventario',
             product.existencias,
             product.lote,
