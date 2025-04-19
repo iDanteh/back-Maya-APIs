@@ -69,6 +69,11 @@ Producto_Inventario.init({
     timestamps: false,
 });
 
+Producto_Inventario.belongsTo(Producto, {
+    foreignKey: 'codigo_barras',
+    targetKey: 'codigo_barras',
+});
+
 sequelize.sync().then(() => {
     console.log('Tabla de producto_inventario creada exitosamente');
 }).catch(error => {
