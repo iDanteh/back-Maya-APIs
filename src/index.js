@@ -4,7 +4,6 @@ import sequelize from './database/conexion.js'; // Importar la conexión a la ba
 import routes from './routes/index.js'; // Importar todas las rutas desde el archivo index.js
 import morgan from 'morgan'; // Importar morgan para ver las peticiones en consola
 import cors from 'cors';
-import routes_syncs from './routes/routes_syncs/index.sync.js';
 
 const app = express();
 
@@ -21,7 +20,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use(express.json()); 
 app.use(routes);
-app.use('/api/sync', routes_syncs);
 
 // Asignación del puerto que va a escuchar el servidor
 app.listen(PORT);

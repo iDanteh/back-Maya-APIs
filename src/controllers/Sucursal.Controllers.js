@@ -1,5 +1,6 @@
 import Sucursal from '../models/Sucursal.Model.js';
 import Inventario from '../models/Inventario.Model.js';
+import Producto_Inventario from '../models/Movimiento_Inventario.Model.js';
 import { Op } from 'sequelize'
 
 export const getSucursales = async (req, res) => {

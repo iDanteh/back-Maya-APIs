@@ -10,25 +10,25 @@ export class producto_inventarioRepository {
         return await this.model.findAll();
     }
 
-    // Nuevo método para buscar productos por inventario_id
-    async findByInventoryId(inventario_id) {
+    // Nuevo método para buscar productos por sucursal_id
+    async findByInventoryId(sucursal_id) {
         return await this.model.findAll({
-            where: { inventario_id }
+            where: { sucursal_id }
         });
     }
 
     // Nuevo método para buscar un producto específico en un inventario por código de barras
-    async findByBarcodeInInventory(inventario_id, codigo_barras) {
+    async findByBarcodeInInventory(sucursal_id, codigo_barras) {
         return await this.model.findOne({
-            where: { inventario_id, codigo_barras }
+            where: { sucursal_id, codigo_barras }
         });
     }
 
-    async createProductInInventory(inventario_id, productData, transactionOptions = {}) {
+    async createProductInInventory(sucursal_id, productData, transactionOptions = {}) {
         const transaction = transactionOptions.transaction;
 
         const existingLot = await this.model.findOne({
-            where: { inventario_id, codigo_barras: productData.codigo_barras, lote: productData.lote },
+            where: { sucursal_id, codigo_barras: productData.codigo_barras, lote: productData.lote },
             transaction
         });
 
@@ -41,7 +41,7 @@ export class producto_inventarioRepository {
 
             // Registrar movimiento de ENTRADA
             await this.movimientoRepo.createMovimiento(
-                existingLot.producto_inventario_id,
+                existingLot.producto_sucursal_id,
                 'Entrada',
                 productData.existencias,
                 'Reabastecimiento de inventario',
@@ -51,12 +51,12 @@ export class producto_inventarioRepository {
         } else {
             result = await this.model.create({
                 ...productData,
-                inventario_id
+                sucursal_id
             }, { transaction });
 
             // Registrar movimiento de ENTRADA
             await this.movimientoRepo.createMovimiento(
-                result.producto_inventario_id,
+                result.producto_sucursal_id,
                 'Entrada',
                 productData.existencias,
                 'Nuevo lote ingresado',
@@ -67,13 +67,13 @@ export class producto_inventarioRepository {
         return result;
     }
 
-    async bulkCreateProductsInInventory(inventario_id, productsData) {
+    async bulkCreateProductsInInventory(sucursal_id, productsData) {
         const transaction = await this.model.sequelize.transaction();
         try {
             // Obtener los productos existentes en una sola consulta
             const existingProducts = await this.model.findAll({
                 where: {
-                    inventario_id,
+                    sucursal_id,
                     codigo_barras: productsData.map(p => p.codigo_barras),
                     lote: productsData.map(p => p.lote),
                 },
@@ -95,7 +95,7 @@ export class producto_inventarioRepository {
 
                     // Registrar el detalle de la operación
                     await this.movimientoRepo.createMovimiento(
-                        existingProduct.producto_inventario_id,
+                        existingProduct.producto_sucursal_id,
                         'Entrada',
                         existingProduct.existencias,
                         'Múltiples productos ingresados',
@@ -106,7 +106,7 @@ export class producto_inventarioRepository {
                     // Insertar nuevo producto
                     newEntries.push({
                         ...product,
-                        inventario_id,
+                        sucursal_id,
                         fecha_ultima_actualizacion: new Date()
                     },
                     
@@ -133,9 +133,9 @@ export class producto_inventarioRepository {
     }    
 
     // Método para eliminar un lote de un producto en un inventario
-    async deleteLot(inventario_id, codigo_barras, lote) {
+    async deleteLot(sucursal_id, codigo_barras, lote) {
         const lot = await this.model.findOne({
-            where: { inventario_id, codigo_barras, lote }
+            where: { sucursal_id, codigo_barras, lote }
         });
 
         if (!lot) {
@@ -149,15 +149,15 @@ export class producto_inventarioRepository {
         return await lot.destroy();
     }
 
-    async update(producto_inventario_id, productData) {
+    async update(producto_sucursal_id, productData) {
         const transaction = await this.model.sequelize.transaction();
 
-        const product = await this.model.findByPk(producto_inventario_id);
+        const product = await this.model.findByPk(producto_sucursal_id);
         if (!product) return null;
 
         // Registra la información de la actualización
         await this.movimientoRepo.createMovimiento(
-            product.producto_inventario_id,
+            product.producto_sucursal_id,
             'Actualizacion manual del inventario',
             product.existencias,
             product.lote,
@@ -168,11 +168,11 @@ export class producto_inventarioRepository {
         return await product.update(productData);
     }
 
-    // async transferProduct(source_inventario_id, target_inventario_id, codigo_barras, lote, cantidad, motivo) {
+    // async transferProduct(source_sucursal_id, target_sucursal_id, codigo_barras, lote, cantidad, motivo) {
     //     const transaction = await this.model.sequelize.transaction();
     //     try {
     //         // 1. Verificar y reducir existencias en origen
-    //         const originProduct = await this.findByBarcodeInInventory(source_inventario_id, codigo_barras, lote);
+    //         const originProduct = await this.findByBarcodeInInventory(source_sucursal_id, codigo_barras, lote);
     //         if (!originProduct || originProduct.existencias < cantidad) {
     //             throw new InventoryError('Existencias insuficientes para transferencia', 400);
     //         }
@@ -183,17 +183,17 @@ export class producto_inventarioRepository {
             
     //         // 2. Registrar movimiento de salida en origen
     //         await this.movimientoRepo.createMovimiento(
-    //             originProduct.producto_inventario_id,
+    //             originProduct.producto_sucursal_id,
     //             'Salida',
     //             cantidad,
     //             motivo,
-    //             `Transferencia a inventario ${target_inventario_id}`,
+    //             `Transferencia a inventario ${target_sucursal_id}`,
     //             { transaction }
     //         );
             
     //         // 3. Agregar existencias en destino
     //         const targetProduct = await this.createProductInInventory(
-    //             target_inventario_id,
+    //             target_sucursal_id,
     //             {
     //                 codigo_barras,
     //                 lote,
@@ -205,11 +205,11 @@ export class producto_inventarioRepository {
             
     //         // 4. Registrar movimiento de entrada en destino
     //         await this.movimientoRepo.createMovimiento(
-    //             targetProduct.producto_inventario_id,
+    //             targetProduct.producto_sucursal_id,
     //             'Entrada',
     //             cantidad,
     //             motivo,
-    //             `Transferencia desde inventario ${source_inventario_id}`,
+    //             `Transferencia desde inventario ${source_sucursal_id}`,
     //             { transaction }
     //         );
             
