@@ -18,8 +18,8 @@ export const getProductoInventario = async (req, res) => {
 
 export const getProductsByInventory = async (req, res) => {
     try {
-        const { inventario_id } = req.params;
-        const productos = await repoProductoInventario.findByInventoryId(inventario_id);
+        const { sucursal_id } = req.params;
+        const productos = await repoProductoInventario.findByInventoryId(sucursal_id);
         res.json(productos);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -28,8 +28,8 @@ export const getProductsByInventory = async (req, res) => {
 
 export const searchProduct = async (req, res) => {
     try {
-        const { inventario_id, codigo_barras } = req.params;
-        const producto = await repoProductoInventario.findByBarcodeInInventory(inventario_id, codigo_barras);
+        const { sucursal_id, codigo_barras } = req.params;
+        const producto = await repoProductoInventario.findByBarcodeInInventory(sucursal_id, codigo_barras);
         
         if (!producto) {
             return res.status(404).json({ message: 'Producto no encontrado en este inventario' });
@@ -43,13 +43,13 @@ export const searchProduct = async (req, res) => {
 
 export const addProductToInventory = async (req, res) => {
     try {
-        const { inventario_id } = req.params;
+        const { sucursal_id } = req.params;
         const productData = {
             ...req.body,
-            inventario_id
+            sucursal_id
         };
 
-        const newProduct = await repoProductoInventario.createProductInInventory(inventario_id, productData);
+        const newProduct = await repoProductoInventario.createProductInInventory(sucursal_id, productData);
         res.status(201).json(newProduct);
     } catch (error) {
         res.status(500).json({ 
@@ -62,14 +62,14 @@ export const addProductToInventory = async (req, res) => {
 export const addMultipleProductsToInventory = async (req, res) => {
     try {
 
-        const { inventario_id } = req.params;
+        const { sucursal_id } = req.params;
         const productsData = req.body.productos; // Accede correctamente a los productos
 
         if (!Array.isArray(productsData)) {
             return res.status(400).json({ error: "El campo 'productos' debe ser un array." });
         }
 
-        const result = await repoProductoInventario.bulkCreateProductsInInventory(inventario_id, productsData);
+        const result = await repoProductoInventario.bulkCreateProductsInInventory(sucursal_id, productsData);
         res.status(201).json({ message: 'Productos procesados correctamente', data: result });
     } catch (error) {
         res.status(500).json({ 
@@ -82,8 +82,8 @@ export const addMultipleProductsToInventory = async (req, res) => {
 
 export const deleteLot = async (req, res) => {
     try {
-        const { inventario_id, codigo_barras, lote } = req.params;
-        const result = await repoProductoInventario.deleteLot(inventario_id, codigo_barras, lote);
+        const { sucursal_id, codigo_barras, lote } = req.params;
+        const result = await repoProductoInventario.deleteLot(sucursal_id, codigo_barras, lote);
         res.json({ message: 'Lote eliminado correctamente' });
     } catch (error) {
         // Mejoraría el manejo de diferentes tipos de errores
@@ -99,7 +99,7 @@ export const deleteLot = async (req, res) => {
 
 export const updateProductData = async (req, res) => {
     try {
-        const updateProduct = await repoProductoInventario.update(req.params.producto_inventario_id, req.body);
+        const updateProduct = await repoProductoInventario.update(req.params.producto_sucursal_id, req.body);
         if (!updateProduct) {
             return res.status(400).json({ error: 'Producto no encontrado'});
         }

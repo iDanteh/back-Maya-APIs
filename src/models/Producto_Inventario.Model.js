@@ -2,6 +2,7 @@ import { Model, DataTypes} from 'sequelize';
 import sequelize from '../database/conexion.js';
 import Inventario from './Inventario.Model.js';
 import Producto from './Producto.Model.js'
+import Sucursal from '../models/Sucursal.Model.js';
 
 class Producto_Inventario extends Model{}
 
@@ -21,6 +22,16 @@ Producto_Inventario.init({
         },
         onDelete:'CASCADE',
         onUpdate:'CASCADE',
+    },
+    sucursal_id: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        references: {
+            model: Sucursal,
+            key: 'sucursal_id'
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
     },
     inventario_id:{
         type: DataTypes.INTEGER,
