@@ -1,4 +1,5 @@
 import { Op, Sequelize} from 'sequelize'
+import Producto from '../models/Producto.Model.js';
 
 export class producto_inventarioRepository {
     constructor(model, movimientoRepo) {
@@ -11,9 +12,16 @@ export class producto_inventarioRepository {
     }
 
     // Nuevo método para buscar productos por sucursal_id
+    // Actualización para obtener también la información de los productos
     async findByInventoryId(sucursal_id) {
         return await this.model.findAll({
-            where: { sucursal_id }
+            where: { sucursal_id },
+            include: [
+                {
+                    model: Producto,
+                    attributes: { exclude: []}
+                }
+            ]
         });
     }
 
