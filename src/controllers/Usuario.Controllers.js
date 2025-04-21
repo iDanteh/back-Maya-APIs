@@ -1,7 +1,8 @@
 import Usuario from '../models/Usuario.Model.js';
+import Sucursal from '../models/Sucursal.Model.js';
 import { UsuarioRepository } from '../repositories/UsuarioRepository.js'
 
-const usuarioRepo = new UsuarioRepository(Usuario);
+const usuarioRepo = new UsuarioRepository(Usuario, Sucursal);
 
 export const getUsuarios = async (req, res) => {
     try {
@@ -69,7 +70,9 @@ export const registerUser = async (req, res) => {
 export const registerAdmin = async (req, res) => {
     try {
         const rol = "administrador";
-        const userData = { ...req.body, rol };
+        // Para administradores, no requerimos sucursal_id
+        const { sucursal_id, ...userData } = req.body;
+        userData.rol = rol;
 
         const emailExist = await usuarioRepo.findByEmail(userData.email);
         if (emailExist) {
@@ -109,8 +112,8 @@ export const deleteUser = async (req, res) => {
 
 export const sucursalAccess = async (req, res) => {
     try {
-        const { usuario, clave_acceso, sucursal_id } = req.body;
-        const access = await usuarioRepo.sucursalAccess(usuario, clave_acceso, sucursal_id);
+        const { usuario, clave_acceso } = req.body;
+        const access = await usuarioRepo.sucursalAccess(usuario, clave_acceso);
         if (!access) {
             return res.status(404).json({ error: 'Acceso no permitido' });
         }
@@ -120,3 +123,13 @@ export const sucursalAccess = async (req, res) => {
         
     }
 };
+
+export const getUserSucursal = async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+        const sucursales = await usuarioRepo.getUserSucursal(usuario_id);
+        res.status(200).json(sucursales);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}

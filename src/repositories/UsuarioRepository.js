@@ -42,12 +42,11 @@ export class UsuarioRepository {
         return true;
     }
 
-    async sucursalAccess(usuario, clave_acceso, sucursal_id) {
+    async sucursalAccess(usuario, clave_acceso) {
         return await this.Usuario.findOne({
             where: {
                 usuario: usuario,
                 clave_acceso: clave_acceso,
-                sucursal_id: sucursal_id
             }
         });
     }
