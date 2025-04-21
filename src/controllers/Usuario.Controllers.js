@@ -54,6 +54,9 @@ export const registerUser = async (req, res) => {
     try {
         const rol = "trabajador";
         const userData = { ...req.body, rol };
+        userData.rol = rol;
+
+        console.log('Datos recibidos:', userData);
 
         const emailExist = await usuarioRepo.findByEmail(userData.email);
         if (emailExist) {
@@ -74,6 +77,11 @@ export const registerAdmin = async (req, res) => {
         const { sucursal_id, ...userData } = req.body;
         userData.rol = rol;
 
+        console.log('Datos recibidos:', userData);
+
+        if (!userData.email) {
+            return res.status(400).json({ error: 'El campo email es requerido' });
+        }        
         const emailExist = await usuarioRepo.findByEmail(userData.email);
         if (emailExist) {
             return res.status(400).json({ error: 'El email ya existe' });
