@@ -27,7 +27,7 @@ export class producto_inventarioRepository {
 
     // Nuevo método para buscar un producto específico en un inventario por código de barras
     async findByBarcodeInInventory(sucursal_id, codigo_barras) {
-        return await this.model.findOne({
+        return await this.model.findAll({
             where: { sucursal_id, codigo_barras }
         });
     }
