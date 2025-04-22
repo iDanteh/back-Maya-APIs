@@ -33,7 +33,7 @@ Producto.init({
     },
     categoria_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: Categoria,
             key: 'categoria_id',
@@ -43,7 +43,7 @@ Producto.init({
     },
     proveedor_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: Proveedor,
             key: 'proveedor_id',
