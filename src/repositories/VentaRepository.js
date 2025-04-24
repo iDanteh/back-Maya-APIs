@@ -26,7 +26,9 @@ export class VentaRepository {
                 // Crear el detalle
                 await this.detalleVentaModel.create({
                     ...detalle,
-                    venta_id: nuevaVenta.venta_id
+                    venta_id: nuevaVenta.venta_id,
+                    usuario_id: ventaData.usuario_id,
+                    sucursal_id: ventaData.sucursal_id
                 }, { transaction });
                 
                 // Actualizar inventario específico por lote
