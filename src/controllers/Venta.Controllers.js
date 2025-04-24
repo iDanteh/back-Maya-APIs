@@ -23,12 +23,12 @@ export const createVenta = async (req, res) => {
         }
 
         const ventaData = {
-            venta_id: `V-${Date.now()}`,
+            venta_id: `V${sucursal_id}-${Date.now()}`,
             sucursal_id,
             usuario_id,
             total,
-            total_recibido: total_recibido || total, // Si no se especifica, asumimos que se pagó exacto
-            numero_factura: `FAC-${Date.now()}`,
+            total_recibido: total_recibido || total,
+            numero_factura: `FAC-${sucursal_id}-${Date.now()}-${usuario_id}`,
             fecha_venta: new Date()
         };
 
