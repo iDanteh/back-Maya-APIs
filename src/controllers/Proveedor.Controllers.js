@@ -69,7 +69,6 @@ export const updateProveedor = async (req, res) => {
 
         const {nombre, telefono, email, descripcion} = req.body;
         proveedor.nombre = nombre;
-        proveedo ;
         proveedor.telefono = telefono;
         proveedor.email = email;
         proveedor.descripcion = descripcion;
