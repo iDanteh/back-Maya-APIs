@@ -56,6 +56,10 @@ Movimiento_Inventario.init({
     timestamps: false,
 });
 
+// Relaciones para poder hacer include correctamente
+Movimiento_Inventario.belongsTo(Producto_Inventario, { foreignKey: 'producto_inventario_id' });
+Movimiento_Inventario.belongsTo(Tipo_Movimiento, { foreignKey: 'tipo_movimiento_id' });
+
 sequelize.sync().then(() => {
     console.log('Tabla de movimiento_inventario creada exitosamente');
 }).catch(error => {

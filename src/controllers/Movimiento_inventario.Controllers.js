@@ -1,7 +1,8 @@
 import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
+import Tipo_Movimiento from '../models/Tipo_Movimiento.Model.js';
 import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js';
 
-const repoMovimientoInventario = new MovimientoInventarioRepository(Movimiento_Inventario);
+const repoMovimientoInventario = new MovimientoInventarioRepository(Movimiento_Inventario, Tipo_Movimiento);
 
 export const getMovimientos = async (req, res) => {
     try {
@@ -9,6 +10,30 @@ export const getMovimientos = async (req, res) => {
         res.status(200).json(movimientos);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener los movimientos' });
+    }
+};
+
+export const getEntradasBySucursal = async (req, res) => {
+    const { sucursal_id } = req.params;
+
+    try {
+        const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id);
+        res.status(200).json(entradas);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al obtener las entradas de la sucursal' });
+    }
+};
+
+export const getSalidasBySucursal = async (req, res) => {
+    const { sucursal_id } = req.params;
+
+    try {
+        const entradas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id);
+        res.status(200).json(entradas);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al obtener las entradas de la sucursal' });
     }
 };
 

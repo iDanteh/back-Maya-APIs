@@ -5,7 +5,9 @@ import {
     getMovimientosByType,
     createMovimiento,
     createMultipleMovements,
-    getMovementsByDate
+    getMovementsByDate,
+    getEntradasBySucursal,
+    getSalidasBySucursal
 } from '../controllers/Movimiento_inventario.Controllers.js';
 const router = Router();
 
@@ -17,4 +19,6 @@ router.get('/api/v1/fecha', getMovementsByDate);
 router.post('/api/v1/movimientos', createMovimiento);
 router.post('/api/v1/multiple', createMultipleMovements);
 
+router.get('/api/v1/movimientos/entradas/:sucursal_id', getEntradasBySucursal);
+router.get('/api/v1/movimientos/salidas/:sucursal_id', getSalidasBySucursal);
 export default router;
