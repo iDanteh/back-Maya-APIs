@@ -1,5 +1,7 @@
 import { Op, where } from 'sequelize';
 import sequelize from '../database/conexion.js';
+import Usuario from '../models/Usuario.Model.js';
+import dayjs from 'dayjs';
 
 export class VentaRepository {
     constructor(ventaModel, detalleVentaModel, productoInventarioModel, inventarioModel, movimientoInventarioModel) {
@@ -194,5 +196,39 @@ export class VentaRepository {
         }
     }
 
+    async getCorteCaja(usuario_id, fecha) {
+        const start = dayjs(fecha).startOf('day').toDate();
+        const end = dayjs(fecha).endOf('day').toDate();
+    
+        console.log('🕒 Rango de fechas:', { start, end });
+    
+        const result = await this.ventaModel.findAll({
+            where: {
+                usuario_id: Number(usuario_id),
+                fecha_venta: {
+                    [Op.between]: [start, end]
+                },
+                anulada: false
+            }, 
+            include: [
+                {
+                    model: Usuario,
+                    attributes: { 
+                        exclude: [
+                            'telefono',
+                            'email',
+                            'rol',
+                            'fecha_ingreso',
+                            'usuario',
+                            'clave_acceso'
+                        ]
+                    }
+                }
+            ]
+        });
+    
+        console.log('📊 Resultado de la consulta:', result.map(v => v.toJSON?.() ?? v));
+    
+        return result;
+    }
 };
-

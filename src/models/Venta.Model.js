@@ -66,6 +66,11 @@ Venta.associate = (models) => {
     });
 };
 
+Venta.belongsTo(Usuario, {
+    foreignKey: 'usuario_id',
+    targetKey: 'usuario_id',
+})
+
 sequelize.sync().then(() => {
     console.log('Tabla de venta creada exitosamente');
 }).catch(error => {

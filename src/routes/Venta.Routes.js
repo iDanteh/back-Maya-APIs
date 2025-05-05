@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getVenta, getVentasByFecha, getVentasBySucursal,
-    createVenta, anularVenta
+    createVenta, anularVenta, getVentasPorUsuarioYFecha
 } from "../controllers/Venta.Controllers.js";
 
 const router = Router();
@@ -20,5 +20,7 @@ router.put('/api/v1/ventas/:venta_id/anular', anularVenta);
 
 // Obtener ventas por rango de fechas (opcionalmente filtrado por sucursal)
 router.get('/api/v1/ventas', getVentasByFecha);
+
+router.get('/api/v1/ventas/corte/:usuario_id/:fecha', getVentasPorUsuarioYFecha);
 
 export default router;
