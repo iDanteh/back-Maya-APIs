@@ -84,12 +84,16 @@ export class producto_inventarioRepository {
     async bulkCreateProductsInInventory(sucursal_id, productsData) {
         const transaction = await this.model.sequelize.transaction();
         try {
-            // Obtener los productos existentes en una sola consulta
+            // Construir condiciones OR para emparejar correctamente cada código y lote
+            const orConditions = productsData.map(p => ({
+                sucursal_id,
+                codigo_barras: p.codigo_barras,
+                lote: p.lote
+            }));
+    
             const existingProducts = await this.model.findAll({
                 where: {
-                    sucursal_id,
-                    codigo_barras: productsData.map(p => p.codigo_barras),
-                    lote: productsData.map(p => p.lote),
+                    [Op.or]: orConditions
                 },
                 transaction,
             });
@@ -99,32 +103,30 @@ export class producto_inventarioRepository {
     
             for (const product of productsData) {
                 const existingProduct = existingProducts.find(
-                    p => p.codigo_barras === product.codigo_barras && p.lote === product.lote
+                    p => p.codigo_barras === product.codigo_barras && 
+                         p.lote === product.lote && 
+                         p.sucursal_id === sucursal_id
                 );
     
                 if (existingProduct) {
                     existingProduct.existencias += product.existencias;
                     existingProduct.fecha_ultima_actualizacion = new Date();
                     updates.push(existingProduct);
-
-                    // Registrar el detalle de la operación
+    
                     await this.movimientoRepo.createMovimiento(
-                        existingProduct.producto_sucursal_id,
+                        existingProduct.producto_inventario_id,
                         'Entrada',
-                        existingProduct.existencias,
+                        product.existencias,
                         'Múltiples productos ingresados',
                         `Lote: ${existingProduct.lote}`,
                         { transaction }
                     );
                 } else {
-                    // Insertar nuevo producto
                     newEntries.push({
                         ...product,
                         sucursal_id,
                         fecha_ultima_actualizacion: new Date()
-                    },
-                    
-                );
+                    });
                 }
             }
     
