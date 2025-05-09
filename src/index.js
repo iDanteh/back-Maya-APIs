@@ -13,6 +13,8 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'ngrok-skip-browser-warning'],
     preflightContinue: false,
 }));
+// Hora generada (ajustada para forzar asignación de zona horaria de méxico)
+console.log(new Date().toString());
 
 app.options('*', cors());
 
