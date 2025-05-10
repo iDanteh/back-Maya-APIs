@@ -136,7 +136,7 @@ export const anularVenta = async (req, res) => {
 };
 
 export const getVentasPorUsuarioYFecha = async (req, res) => {
-    const { usuario_id, fecha, tipo } = req.params;
+    const { usuario_id, fecha, tipo = 'dia' } = req.params;
 
     console.log('🔍 Petición recibida con params:', { usuario_id, fecha, tipo });
 
