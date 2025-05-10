@@ -53,45 +53,31 @@ export class VentaRepository {
     }
 
     async actualizarInventarioPorLote(sucursal_id, codigo_barras, lote, cantidad, transaction) {
-        // 1. Obtener el inventario de la sucursal
-        const inventario = await this.inventarioModel.findOne({
-            where: { sucursal_id },
-            transaction
-        });
-
-        if (!inventario) {
-            throw new Error(`No se encontró inventario para la sucursal ${sucursal_id}`);
-        }
-
-        // 2. Buscar el producto en el inventario específico por lote
+        // 1. Buscar el producto en el inventario específico por sucursal, lote y código
         const productoInventario = await this.productoInventarioModel.findOne({
             where: { 
+                sucursal_id,
                 codigo_barras,
-                inventario_id: inventario.inventario_id,
-                lote,
-                existencias: {
-                    [Op.gte]: cantidad
-                }
+                lote
             },
             transaction
         });
 
         if (!productoInventario) {
+            throw new Error(`No se encontró el producto ${codigo_barras} en el lote ${lote} para la sucursal ${sucursal_id}`);
+        }
+
+        // 2. Validar existencias suficientes
+        if (productoInventario.existencias < cantidad) {
             throw new Error(`No hay suficiente stock para el producto ${codigo_barras} en el lote ${lote}`);
         }
 
         // 3. Actualizar existencias
-        await this.productoInventarioModel.update({
-            existencias: productoInventario.existencias - cantidad,
-            fecha_ultima_actualizacion: new Date()
-        }, {
-            where: { 
-                producto_inventario_id: productoInventario.producto_inventario_id 
-            },
-            transaction
-        });
+        productoInventario.existencias -= cantidad;
+        productoInventario.fecha_ultima_actualizacion = new Date();
+        await productoInventario.save({ transaction });
 
-        // 4. Registra el movimiento del inventario
+        // 4. Registrar el movimiento del inventario
         await this.movimientoInventarioModel.create({
             producto_inventario_id: productoInventario.producto_inventario_id,
             tipo_movimiento_id: 5,
@@ -196,14 +182,21 @@ export class VentaRepository {
         }
     }
 
-    async getCorteCaja(usuario_id, fecha) {
-        // Parsear explícitamente la fecha en formato 'YYYY/MM/DD'
-        const parsedDate = dayjs(fecha, 'YYYY/MM/DD');
+    async getCorteCaja(usuario_id, fecha, tipo = 'dia') {
+        const parsedDate = dayjs(fecha, 'YYYY-MM-DD');
+        
+        let start, end;
 
-        const start = parsedDate.startOf('day').toDate();
-        const end = parsedDate.endOf('day').toDate();
-
-        console.log('🕒 Rango de fechas:', { start, end });
+        if (tipo === 'semana') {
+            start = parsedDate.startOf('week').toDate();
+            end = parsedDate.endOf('week').toDate();
+        } else if (tipo === 'mes') {
+            start = parsedDate.startOf('month').toDate();
+            end = parsedDate.endOf('month').toDate();
+        } else {
+            start = parsedDate.startOf('day').toDate();
+            end = parsedDate.endOf('day').toDate();
+        }
 
         const result = await this.ventaModel.findAll({
             where: {
@@ -213,24 +206,8 @@ export class VentaRepository {
                 },
                 anulada: false
             }, 
-            include: [
-                {
-                    model: Usuario,
-                    attributes: { 
-                        exclude: [
-                            'telefono',
-                            'email',
-                            'rol',
-                            'fecha_ingreso',
-                            'usuario',
-                            'clave_acceso'
-                        ]
-                    }
-                }
-            ]
+            include: [/*...*/]
         });
-
-        console.log('📊 Resultado de la consulta:', result.map(v => v.toJSON?.() ?? v));
 
         return result;
     }

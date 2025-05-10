@@ -136,9 +136,9 @@ export const anularVenta = async (req, res) => {
 };
 
 export const getVentasPorUsuarioYFecha = async (req, res) => {
-    const { usuario_id, fecha } = req.params;
+    const { usuario_id, fecha, tipo } = req.params;
 
-    console.log('🔍 Petición recibida con params:', { usuario_id, fecha });
+    console.log('🔍 Petición recibida con params:', { usuario_id, fecha, tipo });
 
     if (!usuario_id || !fecha) {
         console.warn('⚠️ Falta usuario_id o fecha');
@@ -146,7 +146,7 @@ export const getVentasPorUsuarioYFecha = async (req, res) => {
     }
 
     try {
-        const venta = await ventaRepository.getCorteCaja(usuario_id, fecha);
+        const venta = await ventaRepository.getCorteCaja(usuario_id, fecha, tipo);
         console.log('📦 Ventas encontradas:', venta.length);
 
         if (!venta || venta.length === 0) {
