@@ -184,7 +184,7 @@ export class VentaRepository {
 
     async getCorteCaja(usuario_id, fecha, tipo = 'dia') {
         const parsedDate = dayjs(fecha, 'YYYY-MM-DD');
-        
+
         let start, end;
 
         if (tipo === 'semana') {
@@ -198,6 +198,8 @@ export class VentaRepository {
             end = parsedDate.endOf('day').toDate();
         }
 
+        console.log('🕒 Rango de fechas:', { start, end });
+
         const result = await this.ventaModel.findAll({
             where: {
                 usuario_id: Number(usuario_id),
@@ -206,7 +208,16 @@ export class VentaRepository {
                 },
                 anulada: false
             }, 
-            include: [/*...*/]
+            include: [
+                {
+                    model: Usuario,
+                    attributes: { 
+                        exclude: [
+                            'telefono', 'email', 'rol', 'fecha_ingreso', 'usuario', 'clave_acceso'
+                        ]
+                    }
+                }
+            ]
         });
 
         return result;
