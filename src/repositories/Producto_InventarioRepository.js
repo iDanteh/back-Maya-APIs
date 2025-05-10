@@ -146,7 +146,7 @@ export class producto_inventarioRepository {
             await transaction.rollback();
             throw error;
         }
-    }    
+    } 
 
     // Método para eliminar un lote de un producto en un inventario
     async deleteLot(sucursal_id, codigo_barras, lote) {
