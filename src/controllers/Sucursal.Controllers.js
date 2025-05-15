@@ -50,7 +50,7 @@ export const getSucursalByName = async (req, res) => {
 // Crear una sucursal nueva y crear su inventario
 export const registerSucursal = async (req, res) => {
     try {
-        const {sucursal_id, nombre, direccion, contraseña_sucursal} = req.body;
+        const {sucursal_id, nombre, direccion} = req.body;
 
         const sucursalExist = await Sucursal.findOne({ where: {sucursal_id} });
         if (sucursalExist) {
@@ -58,7 +58,7 @@ export const registerSucursal = async (req, res) => {
         }
 
         // Crear la sucursal
-        const newSucursal = await Sucursal.create({sucursal_id, nombre, direccion, contraseña_sucursal});
+        const newSucursal = await Sucursal.create({sucursal_id, nombre, direccion});
         // console.log('Sucursal creada', newSucursal);
 
         // Crear el inventario de la sucursal

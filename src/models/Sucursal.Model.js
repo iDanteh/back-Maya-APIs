@@ -24,7 +24,7 @@ Sucursal.init({
     },
     contraseña_sucursal: {
         type: DataTypes.STRING(45),
-        allowNull: false,
+        allowNull: true,
     }
 },
 {
