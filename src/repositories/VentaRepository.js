@@ -1,7 +1,8 @@
-import { Op, where } from 'sequelize';
+import { Op, STRING, where } from 'sequelize';
 import sequelize from '../database/conexion.js';
 import Usuario from '../models/Usuario.Model.js';
 import dayjs from 'dayjs';
+import Sucursal from '../models/Sucursal.Model.js';
 
 export class VentaRepository {
     constructor(ventaModel, detalleVentaModel, productoInventarioModel, inventarioModel, movimientoInventarioModel) {
@@ -214,6 +215,47 @@ export class VentaRepository {
                     attributes: { 
                         exclude: [
                             'telefono', 'email', 'rol', 'fecha_ingreso', 'usuario', 'clave_acceso'
+                        ]
+                    }
+                }
+            ]
+        });
+
+        return result;
+    }
+
+    async getCorteCajaSucursal(sucursal_id, fecha, tipo = 'dia') {
+        const parsedDate = dayjs(fecha, 'YYYY-MM-DD');
+
+        let start, end;
+
+        if (tipo === 'semana') {
+            start = parsedDate.startOf('week').toDate();
+            end = parsedDate.endOf('week').toDate();
+        } else if (tipo === 'mes') {
+            start = parsedDate.startOf('month').toDate();
+            end = parsedDate.endOf('month').toDate();
+        } else {
+            start = parsedDate.startOf('day').toDate();
+            end = parsedDate.endOf('day').toDate();
+        }
+
+        console.log('🕒 Rango de fechas:', { start, end });
+
+        const result = await this.ventaModel.findAll({
+            where: {
+                sucursal_id: sucursal_id,
+                fecha_venta: {
+                    [Op.between]: [start, end]
+                },
+                anulada: false
+            }, 
+            include: [
+                {
+                    model: Sucursal,
+                    attributes: { 
+                        exclude: [
+                            'nombre','direccion', 'fecha_creacion', 'contraseña_sucursal'
                         ]
                     }
                 }
