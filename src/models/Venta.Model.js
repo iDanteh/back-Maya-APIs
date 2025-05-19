@@ -71,6 +71,11 @@ Venta.belongsTo(Usuario, {
     targetKey: 'usuario_id',
 })
 
+Venta.belongsTo(Sucursal, {
+    foreignKey: 'sucursal_id',
+    targetKey: 'sucursal_id',
+})
+
 sequelize.sync().then(() => {
     console.log('Tabla de venta creada exitosamente');
 }).catch(error => {

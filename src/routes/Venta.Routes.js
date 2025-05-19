@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getVenta, getVentasByFecha, getVentasBySucursal,
-    createVenta, anularVenta, getVentasPorUsuarioYFecha
+    createVenta, anularVenta, getVentasPorUsuarioYFecha,
+    getVentasPorSucursalYFecha
 } from "../controllers/Venta.Controllers.js";
 
 const router = Router();
@@ -22,5 +23,7 @@ router.put('/api/v1/ventas/:venta_id/anular', anularVenta);
 router.get('/api/v1/ventas', getVentasByFecha);
 
 router.get('/api/v1/ventas/corte/:usuario_id/:fecha/:tipo?', getVentasPorUsuarioYFecha);
+
+router.get('/api/v1/ventas/corte/sucursal/:sucursal_id/:fecha/:tipo?', getVentasPorSucursalYFecha);
 
 export default router;
