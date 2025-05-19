@@ -79,7 +79,7 @@ export const updateCategoria = async(req, res)=>{
         categorias.nombre = nombre;
         categorias.descripcion = descripcion;
         categorias.descuento = descuento;
-        categorias.dia_descuento = dia_descuento;
+        categorias.dia_descuento = dia_descuento || null;
         await categorias.save();
         res.status(200).json({message:'Categoria actualizada'});
     } catch (error) {
