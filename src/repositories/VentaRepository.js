@@ -259,6 +259,16 @@ export class VentaRepository {
                         ]
                     }
                 }
+            ],
+            include: [
+                {
+                    model: Usuario,
+                    attributes: {
+                        exclude: [
+                            'usuario_id', 'telefono', 'email', 'rol', 'fecha_ingreso', 'usuario', 'clave_acceso', 'sucursal_id'
+                        ]
+                    }
+                }
             ]
         });
 
