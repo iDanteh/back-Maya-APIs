@@ -89,7 +89,17 @@ export class VentaRepository {
     }
 
     async getVentaById(venta_id) {
-        return await this.ventaModel.findByPk(venta_id);
+        return await this.ventaModel.findAll({
+            where: { venta_id },
+            include: [{
+                model: Usuario,
+                attributes: {
+                    exclude: [
+                        'telefono', 'email', 'rol', 'fecha_ingreso', 'usuario', 'clave_acceso'
+                    ]
+                }
+            }]
+        });
     }
 
     async getVentasBySucursal(sucursal_id) {
