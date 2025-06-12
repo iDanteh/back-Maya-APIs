@@ -1,28 +1,37 @@
-import tipoMovimientoModel from '../models/Tipo_Movimiento.Model.js';
-import Producto_Inventario from '../models/Producto_Inventario.Model.js';
-
 export class MovimientoInventarioRepository {
     constructor(model, tipoMovimientoModel) {
         this.model = model;
         this.tipoMovimientoModel = tipoMovimientoModel;
+        this.tipoMovimientoCache = {}; // caché local
     }
 
-    async createMovimiento(producto_inventario_id, tipo_movimiento_nombre, cantidad, referencia, observaciones) {
-        const tipoMovimiento = await this.tipoMovimientoModel.findOne({
-            where: { descripcion: tipo_movimiento_nombre }
-        });
+    async getTipoMovimientoId(nombre) {
+        if (!this.tipoMovimientoCache[nombre]) {
+            const tipo = await this.tipoMovimientoModel.findOne({
+                where: { descripcion: nombre },
+                attributes: ['tipo_movimiento_id']
+            });
 
-        if (!tipoMovimiento) {
-            throw new Error(`Tipo de movimiento '${tipo_movimiento_nombre}' no encontrado`);
+            if (!tipo) {
+                throw new Error(`Tipo de movimiento '${nombre}' no encontrado`);
+            }
+
+            this.tipoMovimientoCache[nombre] = tipo.tipo_movimiento_id;
         }
+
+        return this.tipoMovimientoCache[nombre];
+    }
+
+    async createMovimiento(producto_inventario_id, tipo_movimiento_nombre, cantidad, referencia, observaciones, options = {}) {
+        const tipo_movimiento_id = await this.getTipoMovimientoId(tipo_movimiento_nombre);
 
         return await this.model.create({
             producto_inventario_id,
-            tipo_movimiento_id: tipoMovimiento.tipo_movimiento_id,
+            tipo_movimiento_id,
             cantidad,
             referencia,
             observaciones
-        });
+        }, options);
     }
 
     async createBulkMovimientos(movimientosData) {
@@ -40,13 +49,13 @@ export class MovimientoInventarioRepository {
                 {
                     model: this.model.sequelize.models.Producto_Inventario,
                     where: { sucursal_id },
-                    attributes: ['codigo_barras'], // Definimos los campos que queremos añadir
+                    attributes: ['codigo_barras'],
                 }
             ],
             raw: true,
         });
     }
-    
+
     async getSalidasBySucursal(sucursal_id) {
         return await this.model.findAll({
             include: [
@@ -58,7 +67,7 @@ export class MovimientoInventarioRepository {
                 {
                     model: this.model.sequelize.models.Producto_Inventario,
                     where: { sucursal_id },
-                    attributes: ['codigo_barras'], // Definimos los campos que queremos añadir
+                    attributes: ['codigo_barras'],
                 }
             ],
             raw: true,

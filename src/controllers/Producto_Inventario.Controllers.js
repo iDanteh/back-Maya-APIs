@@ -108,3 +108,34 @@ export const updateProductData = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 }
+
+export const transferirProducto = async (req, res) => {
+    const {
+        source_sucursal_id,
+        target_sucursal_id,
+        codigo_barras,
+        lote,
+        cantidad,
+        motivo
+    } = req.body;
+
+    try {
+        const result = await repoProductoInventario.transferProduct(
+            source_sucursal_id,
+            target_sucursal_id,
+            codigo_barras,
+            lote,
+            cantidad,
+            motivo
+        );
+
+        return res.status(200).json({
+            mensaje: 'Transferencia realizada con éxito',
+            origen: result.originProduct,
+            destino: result.targetProduct
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(400).json({ error: error.message });
+    }
+};
