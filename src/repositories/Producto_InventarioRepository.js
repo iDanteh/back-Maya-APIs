@@ -184,56 +184,64 @@ export class producto_inventarioRepository {
         return await product.update(productData);
     }
 
-    // async transferProduct(source_sucursal_id, target_sucursal_id, codigo_barras, lote, cantidad, motivo) {
-    //     const transaction = await this.model.sequelize.transaction();
-    //     try {
-    //         // 1. Verificar y reducir existencias en origen
-    //         const originProduct = await this.findByBarcodeInInventory(source_sucursal_id, codigo_barras, lote);
-    //         if (!originProduct || originProduct.existencias < cantidad) {
-    //             throw new InventoryError('Existencias insuficientes para transferencia', 400);
-    //         }
+    async findProductByInventory (sucursal_id, codigo_barras, lote){
+        const find = await this.model.findOne({
+            where: {sucursal_id, codigo_barras, lote}
+        });
+        if(!find) return null;
+        console.log('Producto encontrado: ', find);
+    }
+
+    async transferProduct(source_sucursal_id, target_sucursal_id, codigo_barras, lote, cantidad, motivo) {
+        const transaction = await this.model.sequelize.transaction();
+        try {
+            // 1. Verificar y reducir existencias en origen
+            const originProduct = await this.findProductByInventory(source_sucursal_id, codigo_barras, lote);
+            if (!originProduct || originProduct.existencias < cantidad) {
+                throw new InventoryError('Existencias insuficientes para transferencia', 400);
+            }
             
-    //         await originProduct.update({
-    //             existencias: originProduct.existencias - cantidad
-    //         }, { transaction });
+            await originProduct.update({
+                existencias: originProduct.existencias - cantidad
+            }, { transaction });
             
-    //         // 2. Registrar movimiento de salida en origen
-    //         await this.movimientoRepo.createMovimiento(
-    //             originProduct.producto_sucursal_id,
-    //             'Salida',
-    //             cantidad,
-    //             motivo,
-    //             `Transferencia a inventario ${target_sucursal_id}`,
-    //             { transaction }
-    //         );
+            // 2. Registrar movimiento de salida en origen
+            await this.movimientoRepo.createMovimiento(
+                originProduct.producto_sucursal_id,
+                'Salida',
+                cantidad,
+                motivo,
+                `Transferencia a inventario ${target_sucursal_id}`,
+                { transaction }
+            );
             
-    //         // 3. Agregar existencias en destino
-    //         const targetProduct = await this.createProductInInventory(
-    //             target_sucursal_id,
-    //             {
-    //                 codigo_barras,
-    //                 lote,
-    //                 existencias: cantidad,
-    //                 // otros campos necesarios...
-    //             },
-    //             { transaction }
-    //         );
+            // 3. Agregar existencias en destino
+            const targetProduct = await this.createProductInInventory(
+                target_sucursal_id,
+                {
+                    codigo_barras,
+                    lote,
+                    existencias: cantidad,
+                    fecha_caducidad: originProduct.fecha_caducidad
+                },
+                { transaction }
+            );
             
-    //         // 4. Registrar movimiento de entrada en destino
-    //         await this.movimientoRepo.createMovimiento(
-    //             targetProduct.producto_sucursal_id,
-    //             'Entrada',
-    //             cantidad,
-    //             motivo,
-    //             `Transferencia desde inventario ${source_sucursal_id}`,
-    //             { transaction }
-    //         );
+            // 4. Registrar movimiento de entrada en destino
+            await this.movimientoRepo.createMovimiento(
+                targetProduct.producto_sucursal_id,
+                'Entrada',
+                cantidad,
+                motivo,
+                `Transferencia desde inventario ${source_sucursal_id}`,
+                { transaction }
+            );
             
-    //         await transaction.commit();
-    //         return { originProduct, targetProduct };
-    //     } catch (error) {
-    //         await transaction.rollback();
-    //         throw error;
-    //     }
-    // }
+            await transaction.commit();
+            return { originProduct, targetProduct };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 }
