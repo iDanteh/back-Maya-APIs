@@ -120,7 +120,7 @@ export const transferirProducto = async (req, res) => {
     } = req.body;
 
     try {
-        const result = await producto_inventarioRepo.transferProduct(
+        const result = await repoProductoInventario.transferProduct(
             source_sucursal_id,
             target_sucursal_id,
             codigo_barras,
