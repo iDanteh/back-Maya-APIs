@@ -139,3 +139,21 @@ export const transferirProducto = async (req, res) => {
         return res.status(400).json({ error: error.message });
     }
 };
+
+export const transferirMultiplesProductos = async (req, res) => {
+    const { source_sucursal_id, productos } = req.body;
+
+    if (!source_sucursal_id || !Array.isArray(productos) || productos.length === 0) {
+        return res.status(400).json({ error: 'Datos incompletos para la transferencia' });
+    }
+
+    try {
+        const result = await repoProductoInventario.transferProductBulk(
+        source_sucursal_id,
+        productos
+        );
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Error en la transferencia múltiple' });
+    }
+}
