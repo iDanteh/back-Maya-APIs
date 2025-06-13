@@ -252,4 +252,97 @@ export class producto_inventarioRepository {
             throw error;
         }
     }
+
+    async transferProductBulk(source_sucursal_id, productDataList) {
+        const transaction = await this.model.sequelize.transaction();
+        try {
+            const transferResults = [];
+
+            for (const product of productDataList) {
+            const { codigo_barras, lote, cantidad, motivo, target_sucursal_id } = product;
+
+            if (!target_sucursal_id || !codigo_barras || !lote || !cantidad) {
+                throw new Error('Faltan datos por producto para realizar la transferencia');
+            }
+
+            const originProduct = await this.findProductByInventory(
+                source_sucursal_id,
+                codigo_barras,
+                lote
+            );
+
+            if (!originProduct || originProduct.existencias < cantidad) {
+                throw new Error(`Producto con código ${codigo_barras} no encontrado o sin existencias suficientes en la sucursal ${source_sucursal_id}`);
+            }
+
+            // 1. Descontar existencias del origen
+            await originProduct.update({
+                existencias: originProduct.existencias - cantidad
+            }, { transaction });
+
+            // 2. Registrar movimiento de salida
+            await this.movimientoRepo.createMovimiento(
+                originProduct.producto_inventario_id,
+                'Salida',
+                cantidad,
+                motivo || 'Transferencia',
+                `Reabastecimiento a inventario ${target_sucursal_id}`,
+                { transaction }
+            );
+
+            // 3. Buscar si ya existe el producto en el inventario destino
+            let targetProduct = await this.findProductByInventory(
+                target_sucursal_id,
+                codigo_barras,
+                lote
+            );
+
+            if (targetProduct) {
+                // Si ya existe, sumar existencias
+                await targetProduct.update({
+                existencias: targetProduct.existencias + cantidad
+                }, { transaction });
+            } else {
+                targetProduct = await this.createProductInInventory(
+                target_sucursal_id,
+                {
+                    codigo_barras,
+                    lote,
+                    existencias: cantidad,
+                    fecha_caducidad: originProduct.fecha_caducidad
+                },
+                { transaction }
+                );
+            }
+
+            // 4. Movimiento en destino
+            await this.movimientoRepo.createMovimiento(
+                targetProduct.producto_inventario_id,
+                'Entrada',
+                cantidad,
+                motivo || 'Transferencia',
+                `Transferencia desde inventario ${source_sucursal_id}`,
+                { transaction }
+            );
+
+            transferResults.push({
+                codigo_barras,
+                lote,
+                cantidad_transferida: cantidad,
+                de: source_sucursal_id,
+                a: target_sucursal_id
+            });
+            }
+
+            await transaction.commit();
+            return {
+            message: 'Transferencias múltiples completadas exitosamente',
+            transferencias: transferResults
+            };
+        } catch (error) {
+            await transaction.rollback();
+            console.error('Error en transferencia múltiple: ', error.message);
+            throw error;
+        }
+    }
 }

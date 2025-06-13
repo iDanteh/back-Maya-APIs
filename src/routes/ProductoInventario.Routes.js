@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getProductoInventario, getProductsByInventory, 
-    searchProduct, deleteLot, transferirProducto,
+    searchProduct, deleteLot, transferirProducto, transferirMultiplesProductos,
     addMultipleProductsToInventory, addProductToInventory, updateProductData} from "../controllers/Producto_Inventario.Controllers.js";
 
 const router = Router();
@@ -15,4 +15,5 @@ router.post('/api/v1/productoInventario/:sucursal_id/batch', addMultipleProducts
 router.put('/api/v1/productoInventario/:producto_inventario_id', updateProductData);
 
 router.post('/api/v1/productoInventario/transferir', transferirProducto); 
+router.post('/api/v1/productoInventario/transferir-multiples', transferirMultiplesProductos);
 export default router;
