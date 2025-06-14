@@ -1,5 +1,6 @@
 import { Op, Sequelize} from 'sequelize'
 import Producto from '../models/Producto.Model.js';
+import Categoria from '../models/Categoria.Model.js';
 
 export class producto_inventarioRepository {
     constructor(model, movimientoRepo) {
@@ -32,7 +33,14 @@ export class producto_inventarioRepository {
             include: [
                 {
                     model: Producto,
-                    attributes: { exclude: []}
+                    attributes: { exclude: []},
+                    include: [
+                        {
+                            model: Categoria,
+                            as: 'categoria',
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento']
+                        }
+                    ]
                 }
             ]
         });

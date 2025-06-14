@@ -4,6 +4,7 @@ import sequelize from './database/conexion.js'; // Importar la conexión a la ba
 import routes from './routes/index.js'; // Importar todas las rutas desde el archivo index.js
 import morgan from 'morgan'; // Importar morgan para ver las peticiones en consola
 import cors from 'cors';
+import './models/initModels.js';
 
 const app = express();
 
