@@ -1,7 +1,7 @@
 import express from 'express';
 import { PORT } from './config.js'; // Importar el puerto desde el archivo config.js
 import sequelize from './database/conexion.js'; // Importar la conexión a la base de datos
-import routes from './routes/index.js'; // Importar todas las rutas desde el archivo index.js
+import routes from './routes/Routesindex.js'; // Importar todas las rutas desde el archivo index.js
 import morgan from 'morgan'; // Importar morgan para ver las peticiones en consola
 import cors from 'cors';
 import './models/initModels.js';
