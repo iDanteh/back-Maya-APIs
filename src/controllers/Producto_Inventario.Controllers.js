@@ -147,6 +147,8 @@ export const transferirMultiplesProductos = async (req, res) => {
         return res.status(400).json({ error: 'Datos incompletos para la transferencia' });
     }
 
+    console.log(req.body);
+
     try {
         const result = await repoProductoInventario.transferProductBulk(
         source_sucursal_id,
