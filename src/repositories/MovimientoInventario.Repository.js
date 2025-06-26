@@ -49,9 +49,10 @@ export class MovimientoInventarioRepository {
                 {
                     model: this.model.sequelize.models.Producto_Inventario,
                     where: { sucursal_id },
-                    attributes: ['codigo_barras'],
+                    attributes: ['codigo_barras', 'sucursal_id'],
                 }
             ],
+            order: [['fecha_movimiento', 'DESC']],
             raw: true,
         });
     }
@@ -67,9 +68,10 @@ export class MovimientoInventarioRepository {
                 {
                     model: this.model.sequelize.models.Producto_Inventario,
                     where: { sucursal_id },
-                    attributes: ['codigo_barras'],
-                }
+                    attributes: ['codigo_barras', 'sucursal_id'],
+                },
             ],
+            order: [['fecha_movimiento', 'DESC']],
             raw: true,
         });
     }

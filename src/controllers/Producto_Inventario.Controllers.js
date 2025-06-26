@@ -69,7 +69,17 @@ export const addMultipleProductsToInventory = async (req, res) => {
             return res.status(400).json({ error: "El campo 'productos' debe ser un array." });
         }
 
+        const invalidProducts = productsData.filter( product => !Number.isInteger(product.existencias) || product.existencias <= 0);
+        
+        if( invalidProducts.length > 0){
+            return res.status(400).json({
+                error: "Las existencias deben ser tipos de datos enteros y no negativos",
+                invalidProducts,
+            });
+        }
+
         const result = await repoProductoInventario.bulkCreateProductsInInventory(sucursal_id, productsData);
+        console.log(productsData);
         res.status(201).json({ message: 'Productos procesados correctamente', data: result });
     } catch (error) {
         res.status(500).json({ 
@@ -145,6 +155,15 @@ export const transferirMultiplesProductos = async (req, res) => {
 
     if (!source_sucursal_id || !Array.isArray(productos) || productos.length === 0) {
         return res.status(400).json({ error: 'Datos incompletos para la transferencia' });
+    }
+
+    const invalidProducts = productos.filter( product => !Number.isInteger(product.cantidad) || product.cantidad <= 0)
+
+    if (invalidProducts.length > 0){
+        return res.status(400).json({
+            error: "Las cantidades deben ser tipos de datos enteres y no negativos",
+            invalidProducts
+        });
     }
 
     console.log(req.body);
