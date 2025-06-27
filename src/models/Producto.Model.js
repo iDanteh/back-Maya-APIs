@@ -59,6 +59,14 @@ Producto.init({
         type: DataTypes.STRING(100),
         allowNull: true,
     },
+    precio_max_anterior: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+    },
+    fecha_updt_precio: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    }
 },
 {
     sequelize,
