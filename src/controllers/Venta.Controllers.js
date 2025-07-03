@@ -154,7 +154,12 @@ export const getVentasPorUsuarioYFecha = async (req, res) => {
             return res.status(404).json({ message: 'Venta no encontrada' });
         }
 
-        res.json(venta);
+        const ventasFormateadas = venta.map(venta => ({
+            ...venta,
+            fecha_venta: dayjs(venta.fecha_venta).tz('America/Mexico_City').format('YYYY-MM-DD HH:mm:ss'),
+        }));
+
+        res.status(200).json(ventasFormateadas);
     } catch (error) {
         console.error('🔥 Error al obtener ventas', error);
         res.status(500).json({ message: 'Error interno del servidor' });
@@ -180,7 +185,12 @@ export const getVentasPorSucursalYFecha = async (req, res) => {
             return res.status(404).json({ message: 'Venta no encontrada' });
         }
 
-        res.json(venta);
+        const ventasFormateadas = venta.map(venta => ({
+            ...venta,
+            fecha_venta: dayjs(venta.fecha_venta).tz('America/Mexico_City').format('YYYY-MM-DD HH:mm:ss'),
+        }));
+
+        res.status(200).json(ventasFormateadas);
     } catch (error) {
         console.error('🔥 Error al obtener ventas', error);
         res.status(500).json({ message: 'Error interno del servidor' });

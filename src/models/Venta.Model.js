@@ -2,6 +2,12 @@ import { Model, DataTypes} from 'sequelize';
 import sequelize from '../database/conexion.js';
 import Sucursal from './Sucursal.Model.js';
 import Usuario from './Usuario.Model.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 class Venta extends Model{}
 
@@ -32,7 +38,7 @@ Venta.init({
     },
     fecha_venta:{
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
+        defaultValue: () => dayjs().tz('America/Mexico_City').toDate(),
     },
     total: {
         type: DataTypes.DECIMAL(10, 2),

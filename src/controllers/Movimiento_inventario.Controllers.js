@@ -1,6 +1,12 @@
 import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
 import Tipo_Movimiento from '../models/Tipo_Movimiento.Model.js';
 import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const repoMovimientoInventario = new MovimientoInventarioRepository(Movimiento_Inventario, Tipo_Movimiento);
 
@@ -18,7 +24,11 @@ export const getEntradasBySucursal = async (req, res) => {
 
     try {
         const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id);
-        res.status(200).json(entradas);
+        const entradasFormateadas = entradas.map(entrada => ({...entrada,
+            fecha_movimiento: dayjs(entrada.fecha_movimiento).tz('America/Mexico_City').format('YYYY-MM-DD HH:mm:ss'),
+        }));
+
+        res.status(200).json(entradasFormateadas);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener las entradas de la sucursal' });
@@ -29,8 +39,11 @@ export const getSalidasBySucursal = async (req, res) => {
     const { sucursal_id } = req.params;
 
     try {
-        const entradas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id);
-        res.status(200).json(entradas);
+        const salidas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id);
+        const salidasFormateadas = salidas.map(entrada => ({...entrada,
+            fecha_movimiento: dayjs(entrada.fecha_movimiento).tz('America/Mexico_City').format('YYYY-MM-DD HH:mm:ss'),
+        }));
+        res.status(200).json(salidasFormateadas);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener las entradas de la sucursal' });
