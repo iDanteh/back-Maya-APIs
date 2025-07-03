@@ -5,6 +5,12 @@ import Inventario from '../models/Inventario.Model.js'
 import { VentaRepository } from '../repositories/VentaRepository.js';
 import MovimientoInventario from '../models/Movimiento_Inventario.Model.js';
 import Producto from '../models/Producto.Model.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const ventaRepository = new VentaRepository(Venta, Detalle_Venta, Producto_Inventario, Inventario, MovimientoInventario);
 
