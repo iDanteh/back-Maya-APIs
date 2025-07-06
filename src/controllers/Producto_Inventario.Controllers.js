@@ -20,11 +20,26 @@ export const getProductsByInventory = async (req, res) => {
     try {
         const { sucursal_id } = req.params;
         const productos = await repoProductoInventario.findByInventoryId(sucursal_id);
-        res.json(productos);
+
+        const productosSinStock = productos.filter(producto => producto.existencias === 0);
+
+        await Promise.all(productosSinStock.map(async (producto) => {
+            try {
+                await repoProductoInventario.deleteLot(sucursal_id, producto.codigo_barras, producto.lote);
+                console.log('Lote eliminado:', producto.lote, 'por cantidad de existencias 0');
+            } catch (error) {
+                console.error(`Error eliminando lote ${producto.lote}:`, error.message);
+            }
+        }));
+
+        const productosConStock = productos.filter(producto => producto.existencias > 0);
+
+        res.json(productosConStock);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
 
 export const searchProduct = async (req, res) => {
     try {
