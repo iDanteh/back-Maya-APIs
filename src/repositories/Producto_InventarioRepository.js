@@ -20,7 +20,14 @@ export class producto_inventarioRepository {
             include: [
                 {
                     model: Producto,
-                    attributes: { exclude: []}
+                    attributes: { exclude: []},
+                    include: [
+                        {
+                            model: Categoria,
+                            as: 'categoria',
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento']
+                        }
+                    ]
                 }
             ]
         });
