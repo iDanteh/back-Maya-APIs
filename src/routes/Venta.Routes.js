@@ -22,7 +22,7 @@ router.put('/api/v1/ventas/:venta_id/anular', anularVenta);
 // Obtener ventas por rango de fechas (opcionalmente filtrado por sucursal)
 router.get('/api/v1/ventas', getVentasByFecha);
 
-router.get('/api/v1/ventas/corte/:usuario_id/:fecha/:tipo?', getVentasPorUsuarioYFecha);
+router.get('/api/v1/ventas/corte/:sucursal_id/:usuario_id/:fecha/:tipo?', getVentasPorUsuarioYFecha);
 
 router.get('/api/v1/ventas/corte/sucursal/:sucursal_id/:fecha/:tipo?', getVentasPorSucursalYFecha);
 

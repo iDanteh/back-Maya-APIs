@@ -193,7 +193,7 @@ export class VentaRepository {
         }
     }
 
-    async getCorteCaja(usuario_id, fecha, tipo = 'dia') {
+    async getCorteCaja(sucursal_id, usuario_id, fecha, tipo = 'dia') {
         const parsedDate = dayjs(fecha, 'YYYY-MM-DD');
 
         let start, end;
@@ -214,6 +214,7 @@ export class VentaRepository {
         const result = await this.ventaModel.findAll({
             where: {
                 usuario_id: Number(usuario_id),
+                sucursal_id: sucursal_id,
                 fecha_venta: {
                     [Op.between]: [start, end]
                 },
