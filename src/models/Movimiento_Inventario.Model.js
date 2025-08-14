@@ -18,7 +18,6 @@ Movimiento_Inventario.init({
             model:Producto_Inventario,
             key:'producto_inventario_id',
         },
-        onDelete: 'SET NULL',
         onUpdate:'CASCADE',
     },
     tipo_movimiento_id:{
@@ -57,7 +56,7 @@ Movimiento_Inventario.init({
 });
 
 // Relaciones para poder hacer include correctamente
-Movimiento_Inventario.belongsTo(Producto_Inventario, { foreignKey: 'producto_inventario_id', onDelete: 'SET NULL' });
+Movimiento_Inventario.belongsTo(Producto_Inventario, { foreignKey: 'producto_inventario_id' });
 Movimiento_Inventario.belongsTo(Tipo_Movimiento, { foreignKey: 'tipo_movimiento_id' });
 
 sequelize.sync().then(() => {
