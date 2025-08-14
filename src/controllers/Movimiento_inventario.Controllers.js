@@ -40,13 +40,20 @@ export const getSalidasBySucursal = async (req, res) => {
 
     try {
         const salidas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id);
-        const salidasFormateadas = salidas.map(entrada => ({...entrada,
-            fecha_movimiento: dayjs(entrada.fecha_movimiento).tz('America/Mexico_City').format('YYYY-MM-DD HH:mm:ss'),
+
+        const salidasFormateadas = salidas.map(salida => ({
+            ...salida,
+            fecha_movimiento: dayjs(salida.fecha_movimiento)
+                .tz('America/Mexico_City')
+                .format('YYYY-MM-DD HH:mm:ss'),
+            codigo_barras: salida['Producto_Inventario.codigo_barras'] || 'Eliminado',
+            sucursal_id: salida['Producto_Inventario.sucursal_id'] || 'Eliminado',
         }));
+
         res.status(200).json(salidasFormateadas);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Error al obtener las entradas de la sucursal' });
+        res.status(500).json({ error: 'Error al obtener las salidas de la sucursal' });
     }
 };
 
@@ -72,16 +79,26 @@ export const getMovimientosByType = async (req, res) => {
 
 export const createMovimiento = async (req, res) => {
     try {
-        const movementData = req.body;
-        const newMovement = await repoMovimientoInventario.createMovement(movementData);
+        const { producto_inventario_id, tipo_movimiento_nombre, cantidad, referencia, observaciones } = req.body;
+
+        const newMovement = await repoMovimientoInventario.createMovimiento(
+            producto_inventario_id,
+            tipo_movimiento_nombre,
+            cantidad,
+            referencia,
+            observaciones
+        );
+
         res.status(201).json(newMovement);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ 
             error: 'Error al crear el movimiento',
             details: error.message 
         });
     }
 };
+
 
 export const createMultipleMovements = async (req, res) => {
     try {
