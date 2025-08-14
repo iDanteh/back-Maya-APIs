@@ -99,41 +99,38 @@ export class producto_inventarioRepository {
     async bulkCreateProductsInInventory(sucursal_id, productsData) {
         const transaction = await this.model.sequelize.transaction();
         try {
-            // Construir condiciones OR para emparejar correctamente cada código y lote
             const orConditions = productsData.map(p => ({
                 sucursal_id,
                 codigo_barras: p.codigo_barras,
                 lote: p.lote
             }));
-    
+        
             const existingProducts = await this.model.findAll({
-                where: {
-                    [Op.or]: orConditions
-                },
+                where: { [Op.or]: orConditions },
                 transaction,
             });
-    
+        
             const updates = [];
             const newEntries = [];
-    
+        
             for (const product of productsData) {
                 const existingProduct = existingProducts.find(
                     p => p.codigo_barras === product.codigo_barras && 
-                         p.lote === product.lote && 
-                         p.sucursal_id === sucursal_id
+                        p.lote === product.lote && 
+                        p.sucursal_id === sucursal_id
                 );
-    
+        
                 if (existingProduct) {
                     existingProduct.existencias += product.existencias;
                     existingProduct.fecha_ultima_actualizacion = new Date();
                     updates.push(existingProduct);
-    
+        
                     await this.movimientoRepo.createMovimiento(
                         existingProduct.producto_inventario_id,
                         'Entrada',
                         product.existencias,
                         `Lote: ${existingProduct.lote}`,
-                        'Múltiples productos ingresados',
+                        'Abastecimiento del inventario',
                         { transaction }
                     );
                 } else {
@@ -144,24 +141,31 @@ export class producto_inventarioRepository {
                     });
                 }
             }
-    
-            // Aplicar actualizaciones en lote
+        
             if (updates.length > 0) {
                 await Promise.all(updates.map(p => p.save({ transaction })));
             }
-    
-            // Insertar nuevas entradas en un solo query
-            if (newEntries.length > 0) {
-                await this.model.bulkCreate(newEntries, { transaction });
+        
+            // Crear nuevos productos y registrar movimiento
+            for (const newProduct of newEntries) {
+                const createdProduct = await this.model.create(newProduct, { transaction });
+                await this.movimientoRepo.createMovimiento(
+                    createdProduct.producto_inventario_id,
+                    'Entrada',
+                    newProduct.existencias,
+                    `Lote: ${newProduct.lote}`,
+                    'Nuevo lote ingresado',
+                    { transaction }
+                );
             }
-    
+        
             await transaction.commit();
             return { updated: updates.length, inserted: newEntries.length };
         } catch (error) {
             await transaction.rollback();
             throw error;
         }
-    } 
+    }
 
     // Método para eliminar un lote de un producto en un inventario
     async deleteLot(sucursal_id, codigo_barras, lote) {

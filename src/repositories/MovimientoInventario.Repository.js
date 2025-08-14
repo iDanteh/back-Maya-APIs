@@ -25,11 +25,28 @@ export class MovimientoInventarioRepository {
     async createMovimiento(producto_inventario_id, tipo_movimiento_nombre, cantidad, referencia, observaciones, options = {}) {
         const tipo_movimiento_id = await this.getTipoMovimientoId(tipo_movimiento_nombre);
 
+        // Obtener información del producto antes de crear el movimiento
+        let productoInfo = {};
+        if (producto_inventario_id) {
+            const producto = await this.model.sequelize.models.Producto_Inventario.findByPk(producto_inventario_id);
+            if (producto) {
+                productoInfo = {
+                    codigo_barras: producto.codigo_barras,
+                    lote: producto.lote
+                };
+            }
+        }
+
+        // Concatenar código de barras y lote en referencia o observaciones
+        const referenciaFinal = referencia 
+            ? `${referencia} | Código: ${productoInfo.codigo_barras || 'N/A'} | Lote: ${productoInfo.lote || 'N/A'}`
+            : `Código: ${productoInfo.codigo_barras || 'N/A'} | Lote: ${productoInfo.lote || 'N/A'}`;
+
         return await this.model.create({
             producto_inventario_id,
             tipo_movimiento_id,
             cantidad,
-            referencia,
+            referencia: referenciaFinal,
             observaciones
         }, options);
     }
@@ -69,6 +86,7 @@ export class MovimientoInventarioRepository {
                     model: this.model.sequelize.models.Producto_Inventario,
                     where: { sucursal_id },
                     attributes: ['codigo_barras', 'sucursal_id'],
+                    required: false,
                 },
             ],
             order: [['fecha_movimiento', 'DESC']],
