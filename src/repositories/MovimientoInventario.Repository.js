@@ -65,7 +65,7 @@ export class MovimientoInventarioRepository {
                 },
                 {
                     model: this.model.sequelize.models.Producto_Inventario,
-                    where: { sucursal_id },
+                    where: { sucursal_id, is_active: true },
                     attributes: ['codigo_barras', 'sucursal_id'],
                 }
             ],
@@ -84,7 +84,7 @@ export class MovimientoInventarioRepository {
                 },
                 {
                     model: this.model.sequelize.models.Producto_Inventario,
-                    where: { sucursal_id },
+                    where: { sucursal_id, is_active: true },
                     attributes: ['codigo_barras', 'sucursal_id'],
                     required: false,
                 },
@@ -93,4 +93,5 @@ export class MovimientoInventarioRepository {
             raw: true,
         });
     }
+
 }

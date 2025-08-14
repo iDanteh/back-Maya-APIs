@@ -16,7 +16,7 @@ export class producto_inventarioRepository {
     // Actualización para obtener también la información de los productos
     async findByInventoryId(sucursal_id) {
         return await this.model.findAll({
-            where: { sucursal_id },
+            where: { sucursal_id, is_active: true },
             include: [
                 {
                     model: Producto,
@@ -170,18 +170,17 @@ export class producto_inventarioRepository {
     // Método para eliminar un lote de un producto en un inventario
     async deleteLot(sucursal_id, codigo_barras, lote) {
         const lot = await this.model.findOne({
-            where: { sucursal_id, codigo_barras, lote }
+            where: { sucursal_id, codigo_barras, lote, is_active: true }
         });
 
-        if (!lot) {
-            throw new Error('Lote no encontrado');
-        }
+        if (!lot) throw new Error('Lote no encontrado');
+        if (lot.existencias > 0) throw new Error('No se puede eliminar un lote con existencias');
 
-        if (lot.existencias > 0) {
-            throw new Error('No se puede eliminar un lote con existencias');
-        }
+        // Marcar como inactivo
+        lot.is_active = false;
+        await lot.save();
 
-        return await lot.destroy();
+        return lot;
     }
 
     async update(producto_inventario_id, productData) {

@@ -121,14 +121,31 @@ export const deleteUser = async (req, res) => {
 export const sucursalAccess = async (req, res) => {
     try {
         const { usuario, clave_acceso } = req.body;
-        const access = await usuarioRepo.sucursalAccess(usuario, clave_acceso);
-        if (!access) {
-            return res.status(404).json({ error: 'Acceso no permitido' });
+
+        if (!usuario || !clave_acceso) {
+            return res.status(400).json({ error: 'Usuario y clave de acceso son requeridos' });
         }
-        res.status(200).json( { message: 'Acceso permitido', access});
+
+        let access;
+
+        try {
+            access = await usuarioRepo.sucursalAccess(usuario, clave_acceso);
+        } catch (dbError) {
+            console.error('Error de conexión al servidor:', dbError.message);
+            return res.status(503).json({ error: 'Servidor no disponible, intenta más tarde' });
+        }
+
+        if (!access) {
+            return res.status(401).json({ error: 'Usuario o clave incorrectos' });
+        }
+
+        // Acceso exitoso
+        res.status(200).json({ message: 'Acceso permitido', access });
+
     } catch (error) {
-        res.status(500).json({ error: error.message });
-        
+        // Cualquier otro error inesperado
+        console.error('Error inesperado en sucursalAccess:', error.message);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
 };
 
