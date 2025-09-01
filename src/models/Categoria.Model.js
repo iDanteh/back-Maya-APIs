@@ -23,8 +23,14 @@ Categoria.init({
         allowNull: true,
     },
     dia_descuento: {
-        type: DataTypes.ENUM('LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'),
-        allowNull: true
+        type: DataTypes.ENUM('LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO', 'NINGUNO', 'FINES DE SEMANA', 'LUNES Y MARTES'),
+        allowNull: true,
+        defaultValue: 'NINGUNO'
+    },
+    impuesto: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 0.00
     }
 },
 {
