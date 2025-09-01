@@ -76,6 +76,8 @@ Producto.init({
     timestamps: false,
 });
 
+Producto.belongsTo(Categoria, { foreignKey: 'categoria_id' });
+
 sequelize.sync().then(() => {
     console.log('Tabla de producto creada exitosamente');
 }).catch(error => {
