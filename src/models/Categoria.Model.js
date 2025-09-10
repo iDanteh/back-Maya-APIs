@@ -28,9 +28,9 @@ Categoria.init({
         defaultValue: 'NINGUNO'
     },
     impuesto: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.INTEGER,
         allowNull: true,
-        defaultValue: 0.00
+        defaultValue: 0
     }
 },
 {
