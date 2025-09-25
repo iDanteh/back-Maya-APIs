@@ -33,6 +33,25 @@ export class producto_inventarioRepository {
         });
     }
 
+    async findFaltantesByInventoryId(sucursal_id) {
+        return await this.model.findAll({
+            where: { sucursal_id },
+            include: [
+                {
+                    model: Producto,
+                    attributes: { exclude: []},
+                    include: [
+                        {
+                            model: Categoria,
+                            as: 'categoria',
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto']
+                        }
+                    ]
+                }
+            ]
+        });
+    }
+
     // Nuevo método para buscar un producto específico en un inventario por código de barras
     async findByBarcodeInInventory(sucursal_id, codigo_barras) {
         return await this.model.findAll({

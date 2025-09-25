@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getProductoInventario, getProductsByInventory, 
     searchProduct, deleteLot, transferirProducto, transferirMultiplesProductos,
-    addMultipleProductsToInventory, addProductToInventory, updateProductData} from "../controllers/Producto_Inventario.Controllers.js";
+    addMultipleProductsToInventory, addProductToInventory, updateProductData, getFaltantesProductsByInventory} from "../controllers/Producto_Inventario.Controllers.js";
 
 const router = Router();
 router.get('/api/v1/productoInventario',getProductoInventario);
@@ -16,4 +16,8 @@ router.put('/api/v1/productoInventario/:producto_inventario_id', updateProductDa
 
 router.post('/api/v1/productoInventario/transferir', transferirProducto); 
 router.post('/api/v1/productoInventario/transferir-multiples', transferirMultiplesProductos);
+
+// Ruta para obtener productos faltantes (sin stock) en una sucursal
+router.get('/api/v1/productoInventario/faltantes/:sucursal_id', getFaltantesProductsByInventory)
+
 export default router;
