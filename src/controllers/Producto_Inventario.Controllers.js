@@ -40,6 +40,18 @@ export const getProductsByInventory = async (req, res) => {
     }
 };
 
+export const getFaltantesProductsByInventory = async (req, res) => {
+    try {
+        const { sucursal_id } = req.params;
+        const productos = await repoProductoInventario.findFaltantesByInventoryId(sucursal_id);
+
+        const productosSinStock = productos.filter(producto => producto.existencias === 0 || producto.existencias === null || producto.existencias <= 5);
+
+        res.json(productosSinStock);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 
 export const searchProduct = async (req, res) => {
     try {
