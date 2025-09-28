@@ -20,11 +20,11 @@ import {
 
 const router = Router();
 
-router.get('/api/v1/tipoMovimientos', verifyToken, getTiposMovimiento);
-router.get('/api/v1/tipoMovimientos/:tipo_movimiento_id', verifyToken, getTipoMovimientoById);
-router.get('/api/v1/tipoMovimientos/factor/:factor', verifyToken, getTiposByFactor);
-router.post('/api/v1/tipoMovimientos/register', verifyToken, registerTipoMovimiento);
-router.put('/api/v1/tipoMovimientos/:tipo_movimiento_id', verifyToken, updateTipoMovimiento);
-router.delete('/api/v1/tipoMovimientos/:tipo_movimiento_id', verifyToken, deleteTipoMovimiento);
+router.get('/api/v1/tipoMovimientos', getTiposMovimiento);
+router.get('/api/v1/tipoMovimientos/:tipo_movimiento_id',  getTipoMovimientoById);
+router.get('/api/v1/tipoMovimientos/factor/:factor',  getTiposByFactor);
+router.post('/api/v1/tipoMovimientos/register',  registerTipoMovimiento);
+router.put('/api/v1/tipoMovimientos/:tipo_movimiento_id', updateTipoMovimiento);
+router.delete('/api/v1/tipoMovimientos/:tipo_movimiento_id', deleteTipoMovimiento);
 
 export default router;
