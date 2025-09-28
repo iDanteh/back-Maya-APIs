@@ -1,9 +1,6 @@
 import Usuario from '../models/Usuario.Model.js';
 import Sucursal from '../models/Sucursal.Model.js';
 import { UsuarioRepository } from '../repositories/UsuarioRepository.js'
-import jwt from 'jsonwebtoken';
-import { JWT_EXPIRES, JWT_SECRET } from '../config.js';
-import { invalidateToken } from '../middlewares/tokenBlacklist.js'
 
 const usuarioRepo = new UsuarioRepository(Usuario, Sucursal);
 
@@ -142,22 +139,7 @@ export const sucursalAccess = async (req, res) => {
             return res.status(401).json({ error: 'Usuario o clave incorrectos' });
         }
 
-        const token = jwt.sign(
-            { id: access.usuario_id, usuario: access.usuario, rol: access.rol }, 
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES }
-        );
-
-        // Acceso exitoso con token
-        res.status(200).json({ 
-            message: 'Acceso permitido', 
-            token,
-            usuario: {
-                id: access.usuario_id,
-                usuario: access.usuario,
-                rol: access.rol
-            }
-        });
+        res.status(200).json({ message: 'Acceso permitido', access });
 
     } catch (error) {
         // Cualquier otro error inesperado

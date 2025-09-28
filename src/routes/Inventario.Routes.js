@@ -4,6 +4,6 @@ import { verifyToken } from '../middlewares/auth.js';
 
 const router = Router();
 
-router.get('/api/v1/inventarios', verifyToken, getInventarios);
+router.get('/api/v1/inventarios',  getInventarios);
 
 export default router;

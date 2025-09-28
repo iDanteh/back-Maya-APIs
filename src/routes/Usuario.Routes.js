@@ -10,17 +10,17 @@ const router = Router();
 router.post('/api/v1/usuarios/sucursal', sucursalAccess);
 
 // Rutas protegidas con verificación de token
-router.get('/api/v1/usuarios', verifyToken, getUsuarios);
-router.get('/api/v1/usuarios/:usuario_id', verifyToken, getUsuarioById);
-router.get('/api/v1/usuarios/search', verifyToken, getUsuarioByName);
+router.get('/api/v1/usuarios', getUsuarios);
+router.get('/api/v1/usuarios/:usuario_id', getUsuarioById);
+router.get('/api/v1/usuarios/search', getUsuarioByName);
 
-router.get('/api/v1/usuarios/:usuario_id/sucursales', verifyToken, getUserSucursal);
+router.get('/api/v1/usuarios/:usuario_id/sucursales', getUserSucursal);
 
-router.post('/api/v1/usuarios', verifyToken, registerUser);
-router.post('/api/v1/usuarios/admin', verifyToken, registerAdmin);
-router.put('/api/v1/usuarios/:usuario_id', verifyToken, updateUser);
-router.delete('/api/v1/usuarios/:usuario_id', verifyToken, deleteUser);
+router.post('/api/v1/usuarios', registerUser);
+router.post('/api/v1/usuarios/admin', registerAdmin);
+router.put('/api/v1/usuarios/:usuario_id', updateUser);
+router.delete('/api/v1/usuarios/:usuario_id', deleteUser);
 
-router.post('/api/v1/usuarios/logout', verifyToken, logout);
+router.post('/api/v1/usuarios/logout', logout);
 
 export default router;

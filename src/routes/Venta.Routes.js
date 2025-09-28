@@ -9,22 +9,22 @@ const router = Router();
 
 
 // Crear una nueva venta
-router.post('/api/v1/ventas', verifyToken, createVenta);
+router.post('/api/v1/ventas',  createVenta);
 
 // Obtener una venta específica
-router.get('/api/v1/ventas/:venta_id', verifyToken, getVenta);
+router.get('/api/v1/ventas/:venta_id', getVenta);
 
 // Obtener ventas por sucursal
-router.get('/api/v1/ventas/:sucursal_id/sucursal', verifyToken, getVentasBySucursal);
+router.get('/api/v1/ventas/:sucursal_id/sucursal',  getVentasBySucursal);
 
 // Anular una venta
-router.put('/api/v1/ventas/:venta_id/anular', verifyToken, anularVenta);
+router.put('/api/v1/ventas/:venta_id/anular',  anularVenta);
 
 // Obtener ventas por rango de fechas (opcionalmente filtrado por sucursal)
-router.get('/api/v1/ventas', verifyToken, getVentasByFecha);
+router.get('/api/v1/ventas',  getVentasByFecha);
 
-router.get('/api/v1/ventas/cortePersonal/:sucursal_id/:usuario_id/:fecha/:tipo?', verifyToken, getVentasPorUsuarioYFecha);
+router.get('/api/v1/ventas/cortePersonal/:sucursal_id/:usuario_id/:fecha/:tipo?',  getVentasPorUsuarioYFecha);
 
-router.get('/api/v1/ventas/corteSucursal/sucursal/:sucursal_id/:fecha/:tipo?', verifyToken, getVentasPorSucursalYFecha);
+router.get('/api/v1/ventas/corteSucursal/sucursal/:sucursal_id/:fecha/:tipo?', getVentasPorSucursalYFecha);
 
 export default router;
