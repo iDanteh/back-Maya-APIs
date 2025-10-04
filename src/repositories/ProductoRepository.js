@@ -5,7 +5,7 @@ export class ProductoRepository {
     }
 
     async findAll() {
-        return await this.model.findAll();
+        return this.model.findAll();
     }
 
     async findById(codigo_barras) {
@@ -33,9 +33,21 @@ export class ProductoRepository {
     }
 
     async delete(codigo_barras) {
-        const product = await this.model.findByPk(codigo_barras);
+        const product = await this.model.scope('withInactive').findByPk(codigo_barras);
         if (!product) return false;
-        await product.destroy();
+
+        if (product.is_active === false) {
+        return true;
+        }
+
+        await product.update({ is_active: false });
+        return true;
+    }
+
+    async restore(codigo_barras) {
+        const product = await this.model.scope('withInactive').findByPk(codigo_barras);
+        if (!product) return false;
+        await product.update({ is_active: true });
         return true;
     }
 }

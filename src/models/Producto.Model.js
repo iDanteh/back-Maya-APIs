@@ -8,7 +8,7 @@ class Producto extends Model {}
 
 Producto.init({
     codigo_barras: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(150),
         primaryKey: true,
     },
     nombre: {
@@ -66,17 +66,30 @@ Producto.init({
     fecha_updt_precio: {
         type: DataTypes.DATE,
         allowNull: true,
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
     }
-},
-{
+},{
     sequelize,
     modelName: 'Producto',
     freezeTableName: true,
     tableName: 'producto',
     timestamps: false,
+
+    defaultScope: {
+    where: { is_active: true },
+    },
+    scopes: {
+        withInactive: {},
+        onlyInactive: { where: { is_active: false } },
+    },
 });
 
 Producto.belongsTo(Categoria, { foreignKey: 'categoria_id' });
+Producto.belongsTo(Proveedor, { foreignKey: 'proveedor_id' });
 
 sequelize.sync().then(() => {
     console.log('Tabla de producto creada exitosamente');
