@@ -5,7 +5,7 @@ export class ProductoRepository {
     }
 
     async findAll() {
-        return this.model.findAll();
+        return this.model.scope(null).findAll();
     }
 
     async findById(codigo_barras) {

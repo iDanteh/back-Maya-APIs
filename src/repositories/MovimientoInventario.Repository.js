@@ -22,32 +22,46 @@ export class MovimientoInventarioRepository {
         return this.tipoMovimientoCache[nombre];
     }
 
-    async createMovimiento(producto_inventario_id, tipo_movimiento_nombre, cantidad, referencia, observaciones, options = {}) {
+    // MovimientoInventarioRepository.js
+    async createMovimiento(payload, options = {}) {
+        const {
+            producto_inventario_id,
+            tipo_movimiento_nombre,
+            cantidad,
+            referencia,
+            observaciones,
+            codigo_barras: cbParam,
+            lote: loteParam,
+            sucursal_id
+        } = payload;
+
         const tipo_movimiento_id = await this.getTipoMovimientoId(tipo_movimiento_nombre);
 
-        // Obtener información del producto antes de crear el movimiento
-        let productoInfo = {};
-        if (producto_inventario_id) {
+        // Preferir datos explícitos si vienen:
+        let codigo_barras = cbParam || null;
+        let lote = loteParam || null;
+
+        // Si falta alguno, intentar resolverlo por producto_inventario_id
+        if ((!codigo_barras || !lote) && producto_inventario_id) {
             const producto = await this.model.sequelize.models.Producto_Inventario.findByPk(producto_inventario_id);
             if (producto) {
-                productoInfo = {
-                    codigo_barras: producto.codigo_barras,
-                    lote: producto.lote
-                };
+            codigo_barras = codigo_barras || producto.codigo_barras;
+            lote = lote || producto.lote;
             }
         }
 
-        // Concatenar código de barras y lote en referencia o observaciones
-        const referenciaFinal = referencia 
-            ? `${referencia} | Código: ${productoInfo.codigo_barras || 'N/A'} | Lote: ${productoInfo.lote || 'N/A'}`
-            : `Código: ${productoInfo.codigo_barras || 'N/A'} | Lote: ${productoInfo.lote || 'N/A'}`;
+        const refParts = [];
+        if (referencia && referencia.trim()) refParts.push(referencia.trim());
+        refParts.push(`Código: ${codigo_barras || '-'}`);
+        refParts.push(`Lote: ${lote || '-'}`);
+        const referenciaFinal = refParts.join(' | ');
 
         return await this.model.create({
             producto_inventario_id,
             tipo_movimiento_id,
             cantidad,
             referencia: referenciaFinal,
-            observaciones
+            observaciones,
         }, options);
     }
 
