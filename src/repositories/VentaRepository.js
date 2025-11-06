@@ -1,8 +1,9 @@
-import { Op, STRING, where } from 'sequelize';
+import { Op, STRING, where, fn, col, literal } from 'sequelize';
 import sequelize from '../database/conexion.js';
 import Usuario from '../models/Usuario.Model.js';
 import dayjs from 'dayjs';
 import Sucursal from '../models/Sucursal.Model.js';
+import Venta from '../models/Venta.Model.js';
 
 export class VentaRepository {
     constructor(ventaModel, detalleVentaModel, productoInventarioModel, inventarioModel, movimientoInventarioModel) {
@@ -211,13 +212,19 @@ export class VentaRepository {
 
         console.log('🕒 Rango de fechas:', { start, end });
 
-        const result = await this.ventaModel.findAll({
+        const usuario = await Usuario.findByPk(Number(usuario_id), {
+            attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'sucursal_id']
+        });
+
+        if (!usuario) {
+            return { error: 'Usuario no encontrado' };
+        }
+
+        const ventasUsuario = await this.ventaModel.findAll({
             where: {
                 usuario_id: Number(usuario_id),
-                sucursal_id: sucursal_id,
-                fecha_venta: {
-                    [Op.between]: [start, end]
-                },
+                sucursal_id,
+                fecha_venta: { [Op.between]: [start, end] },
                 anulada: false
             }, 
             include: [
@@ -232,57 +239,238 @@ export class VentaRepository {
             ]
         });
 
-        return result;
-    }
-
-    async getCorteCajaSucursal(sucursal_id, fecha, tipo = 'dia') {
-        const parsedDate = dayjs(fecha, 'YYYY-MM-DD');
-
-        let start, end;
-
-        if (tipo === 'semana') {
-            start = parsedDate.startOf('week').toDate();
-            end = parsedDate.endOf('week').toDate();
-        } else if (tipo === 'mes') {
-            start = parsedDate.startOf('month').toDate();
-            end = parsedDate.endOf('month').toDate();
-        } else {
-            start = parsedDate.startOf('day').toDate();
-            end = parsedDate.endOf('day').toDate();
-        }
-
-        console.log('🕒 Rango de fechas:', { start, end });
-
-        const result = await this.ventaModel.findAll({
+        const [totalUsuarioRow] = await this.ventaModel.findAll({
+            attributes: [[sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total')), 0), 'total_usuario']],
             where: {
-                sucursal_id: sucursal_id,
-                fecha_venta: {
-                    [Op.between]: [start, end]
-                },
-                anulada: false
-            }, 
-            include: [
-                {
-                    model: Sucursal,
-                    attributes: { 
-                        exclude: [
-                            'nombre','direccion', 'fecha_creacion', 'contraseña_sucursal'
-                        ]
-                    }
-                }
-            ],
+                usuario_id: Number(usuario_id),
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.between]: [start, end] }
+            },
+            raw: true
+        });
+
+        const total_usuario = Number(totalUsuarioRow.total_usuario);
+
+        const [totalTurnoRow] = await this.ventaModel.findAll({
+            attributes: [[sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total')), 0), 'total_turno']],
             include: [
                 {
                     model: Usuario,
-                    attributes: {
-                        exclude: [
-                            'usuario_id', 'telefono', 'email', 'rol', 'fecha_ingreso', 'usuario', 'clave_acceso', 'sucursal_id'
-                        ]
-                    }
+                    attributes: [],
+                    where: { turno: usuario.turno }
                 }
-            ]
+            ],
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.between]: [start, end] }
+            },
+            raw: true
         });
 
-        return result;
+        const total_turno = Number(totalTurnoRow.total_turno);
+
+        return {
+            rango: { start, end },
+            usuario: {
+                usuario_id: usuario.usuario_id,
+                nombre: `${usuario.nombre}${usuario.apellido ? ' ' + usuario.apellido : ''}`.trim(),
+                turno: usuario.turno,
+            },
+            detalle_ventas: ventasUsuario,
+            totales: {
+                total_usuario,
+                total_turno,
+            }
+        };
+    }
+
+    _getRange(fecha, tipo = 'dia') {
+        const d = dayjs(fecha, 'YYYY-MM-DD');
+        if (tipo === 'semana') {
+            const start = d.startOf('week');
+            return { start: start.toDate(), end: start.add(1, 'week').toDate() };
+        }
+        if (tipo === 'mes') {
+            const start = d.startOf('month');
+            return { start: start.toDate(), end: start.add(1, 'month').toDate() };
+        }
+        const start = d.startOf('day');
+        return { start: start.toDate(), end: start.add(1, 'day').toDate() };
+    }
+
+    async getCorteCaja(sucursal_id, usuario_id, fecha, tipo = 'dia') {
+        const { start, end } = this._getRange(fecha, tipo);
+        console.log('🕒 Rango de fechas (semiabierto):', { start, end });
+
+        const usuario = await Usuario.findByPk(Number(usuario_id), {
+            attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'sucursal_id']
+        });
+
+        if (!usuario) {
+            return { error: 'Usuario no encontrado' };
+        }
+
+        // 1) Ventas del usuario en la sucursal y rango
+        const ventasUsuario = await this.ventaModel.findAll({
+            where: {
+                sucursal_id,
+                usuario_id: Number(usuario_id),
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            include: [
+                { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno'] },
+                { model: Sucursal, attributes: ['sucursal_id'] }
+            ],
+            order: [['fecha_venta', 'ASC']]
+        });
+
+        // Totales del propio usuario
+        const [totalUsuarioRow] = await this.ventaModel.findAll({
+            attributes: [[fn('COALESCE', fn('SUM', col('total')), 0), 'total_usuario']],
+            where: {
+                sucursal_id,
+                usuario_id: Number(usuario_id),
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            raw: true
+        });
+        const total_usuario = Number(totalUsuarioRow?.total_usuario ?? 0);
+
+        const [totalTurnoRow] = await this.ventaModel.findAll({
+            attributes: [[fn('COALESCE', fn('SUM', col('total')), 0), 'total_turno']],
+            include: [{ model: Usuario, attributes: [], where: { turno: usuario.turno } }],
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            raw: true
+        });
+        const total_turno = Number(totalTurnoRow?.total_turno ?? 0);
+        const total_otros_mismo_turno = Math.max(total_turno - total_usuario, 0);
+
+        const ventasMismoTurnoOtros = await this.ventaModel.findAll({
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end },
+                usuario_id: { [Op.ne]: Number(usuario_id) }
+            },
+            include: [
+                { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno'], where: { turno: usuario.turno } },
+                { model: Sucursal, attributes: ['sucursal_id'] }
+            ],
+            order: [['fecha_venta', 'ASC']]
+        });
+
+        const agregadosTurnoRows = await this.ventaModel.findAll({
+            attributes: [
+                'usuario_id',
+                [col('Usuario.turno'), 'turno'],
+                [fn('COUNT', col('venta_id')), 'num_ventas'],
+                [fn('SUM', col('total')), 'total_vendido']
+            ],
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            include: [{ model: Usuario, attributes: [], where: { turno: usuario.turno } }],
+            group: ['usuario_id', 'Usuario.turno'],
+            raw: true
+        });
+
+        return {
+            sucursal_id,
+            rango: { tipo, inicio: start, fin_exclusivo: end },
+            usuario: {
+                usuario_id: usuario.usuario_id,
+                nombre: `${usuario.nombre}${usuario.apellido ? ' ' + usuario.apellido : ''}`.trim(),
+                turno: usuario.turno
+            },
+            ventas_usuario: ventasUsuario, 
+            ventas_mismo_turno_otros: ventasMismoTurnoOtros, 
+            agregados_mismo_turno_por_usuario: agregadosTurnoRows.map(r => ({
+                usuario_id: r.usuario_id,
+                turno: r.turno ?? 'sin_turno',
+                num_ventas: Number(r.num_ventas),
+                total_vendido: Number(r.total_vendido)
+            })), 
+            totales: {
+                total_usuario,
+                total_turno,
+                total_otros_mismo_turno
+            }
+        };
+    }
+
+    async getCorteCajaSucursal(sucursal_id, fecha, tipo = 'dia') {
+        const { start, end } = this._getRange(fecha, tipo);
+        console.log('🕒 Rango de fechas (semiabierto):', { start, end });
+
+        const ventas = await this.ventaModel.findAll({
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            include: [
+                { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno'] },
+                { model: Sucursal, attributes: ['sucursal_id'] }
+            ],
+            order: [['fecha_venta', 'ASC']]
+        });
+
+        const totalesPorUsuarioRows = await this.ventaModel.findAll({
+            attributes: [
+                'usuario_id',
+                [col('Usuario.turno'), 'turno'],
+                [fn('SUM', col('total')), 'total_vendido'],
+                [fn('COUNT', col('venta_id')), 'num_ventas']
+            ],
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            include: [{ model: Usuario, attributes: [] }],
+            group: ['usuario_id', 'Usuario.turno'],
+            raw: true
+        });
+
+        const totalesPorUsuario = totalesPorUsuarioRows.map(r => ({
+            usuario_id: r.usuario_id,
+            turno: r.turno ?? 'sin_turno',
+            num_ventas: Number(r.num_ventas),
+            total_vendido: Number(r.total_vendido)
+        }));
+
+        const totalesPorTurno = totalesPorUsuario.reduce((acc, r) => {
+            const t = r.turno || 'sin_turno';
+            acc[t] = acc[t] || { turno: t, num_ventas: 0, total_vendido: 0 };
+            acc[t].num_ventas += r.num_ventas;
+            acc[t].total_vendido += r.total_vendido;
+            return acc;
+        }, {});
+        const totalesPorTurnoArr = Object.values(totalesPorTurno).map(r => ({
+            turno: r.turno,
+            num_ventas: Number(r.num_ventas),
+            total_vendido: Number(r.total_vendido)
+        }));
+
+        const totalGeneral = totalesPorUsuario.reduce((s, r) => s + r.total_vendido, 0);
+
+        return {
+            sucursal_id,
+            rango: { tipo, inicio: start, fin_exclusivo: end },
+            totalGeneral,
+            totalesPorTurno: totalesPorTurnoArr,
+            totalesPorUsuario,
+            ventas
+        };
     }
 };
