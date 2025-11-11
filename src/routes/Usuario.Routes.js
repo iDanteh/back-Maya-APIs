@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getUsuarios, getUsuarioById, getUsuarioByName, 
     registerUser, registerAdmin, updateUser, deleteUser,
-    sucursalAccess, getUserSucursal, logout} from '../controllers/Usuario.Controllers.js';
+    sucursalAccess, getUserSucursal, logout, reactivateUser} from '../controllers/Usuario.Controllers.js';
 import { verifyToken } from '../middlewares/auth.js';
 
 const router = Router();
@@ -22,5 +22,7 @@ router.put('/api/v1/usuarios/:usuario_id', updateUser);
 router.delete('/api/v1/usuarios/:usuario_id', deleteUser);
 
 router.post('/api/v1/usuarios/logout', logout);
+
+router.patch('/api/v1/usuarios/reactivate/:usuario_id', reactivateUser);
 
 export default router;

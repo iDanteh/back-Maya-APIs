@@ -49,6 +49,10 @@ Usuario.init({
         allowNull: false,
         unique: true,
     },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+    },
     sucursal_id: {
         type: DataTypes.STRING(10),
         allowNull: true,

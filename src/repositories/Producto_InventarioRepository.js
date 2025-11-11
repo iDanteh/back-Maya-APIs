@@ -218,28 +218,28 @@ export class producto_inventarioRepository {
 
     async update(producto_inventario_id, productData) {
         const transaction = await this.model.sequelize.transaction();
-
         try {
             const product = await this.model.findByPk(producto_inventario_id);
             if (!product) {
-                await transaction.rollback();
-                return null;
+            await transaction.rollback();
+            return null;
             }
 
-            await this.movimientoRepo.createMovimiento(
-                product.producto_inventario_id,
-                'Actualizacion manual del inventario',
-                product.existencias,
-                product.lote,
-                'Actualización en la información del producto',
-                { transaction }
-            );
+            await this.movimientoRepo.createMovimiento({
+            producto_inventario_id: product.producto_inventario_id,
+            tipo_movimiento_nombre: 'Actualizacion manual del inventario',
+            cantidad: product.existencias,
+            referencia: 'Actualización en la información del producto',
+            observaciones: 'Actualización en la información del producto',
+            lote: product.lote,
+            codigo_barras: product.codigo_barras ?? null,
+            sucursal_id: product.sucursal_id ?? null,
+            }, { transaction });
 
             const updated = await product.update(productData, { transaction });
 
             await transaction.commit();
             return updated;
-
         } catch (err) {
             await transaction.rollback();
             throw err;
