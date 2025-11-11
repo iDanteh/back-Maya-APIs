@@ -167,3 +167,13 @@ export const getUserSucursal = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 }
+
+export const reactivateUser = async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+        const usuario = await usuarioRepo.reactivateUser(usuario_id);
+        res.status(200).json(usuario);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}

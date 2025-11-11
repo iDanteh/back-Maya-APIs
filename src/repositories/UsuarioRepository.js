@@ -7,7 +7,11 @@ export class UsuarioRepository {
     }
 
     async findAll() {
-        return await this.Usuario.findAll();
+        return await this.Usuario.findAll({
+            where: {
+                is_active: true
+            }
+        });
     }
 
     async findById(id) {
@@ -38,7 +42,9 @@ export class UsuarioRepository {
     async delete(id) {
         const user = await this.Usuario.findByPk(id);
         if (!user) return false;
-        await user.destroy();
+        await user.update({
+            is_active: false,
+        });
         return true;
     }
 
@@ -84,5 +90,15 @@ export class UsuarioRepository {
             }
             return [user.sucursal];
         }
+    }
+
+    async reactivateUser(usuario_id) {
+        const user = await this.Usuario.findByPk(usuario_id);
+
+        if (!user) return false;
+
+        return await user.update({
+            is_active: true
+        });
     }
 }
