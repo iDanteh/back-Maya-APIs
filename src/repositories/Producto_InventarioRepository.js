@@ -304,9 +304,13 @@ export class producto_inventarioRepository {
                     }
 
                     // 1. Descontar existencias del origen
+                    const nuevoStock = tempExistencias[key];
+
                     await originProduct.update({
-                        existencias: tempExistencias[key]
+                        existencias: nuevoStock,
+                        is_active: nuevoStock > 0
                     }, { transaction });
+
 
                     // 2. Registrar movimiento de salida
                     await this.movimientoRepo.createMovimiento({
@@ -330,7 +334,8 @@ export class producto_inventarioRepository {
                     if (targetProduct) {
                         // Si ya existe, sumar existencias
                         await targetProduct.update({
-                        existencias: targetProduct.existencias + cantidad
+                        existencias: targetProduct.existencias + cantidad,
+                        is_active: true
                         }, { transaction });
                     } else {
                         targetProduct = await this.createProductInInventory(
@@ -339,7 +344,8 @@ export class producto_inventarioRepository {
                             codigo_barras,
                             lote,
                             existencias: cantidad,
-                            fecha_caducidad: originProduct.fecha_caducidad
+                            fecha_caducidad: originProduct.fecha_caducidad,
+                            is_active: true
                         },
                         { transaction, logMovimiento: false }
                         );

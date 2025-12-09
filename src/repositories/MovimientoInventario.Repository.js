@@ -71,17 +71,18 @@ export class MovimientoInventarioRepository {
 
     async getEntradasBySucursal(sucursal_id) {
         return await this.model.findAll({
+            where: { sucursal_id },
             include: [
-                {
-                    model: this.tipoMovimientoModel,
-                    where: { descripcion: 'Entrada' },
-                    attributes: [],
-                },
-                {
-                    model: this.model.sequelize.models.Producto_Inventario,
-                    where: { sucursal_id, is_active: true },
-                    attributes: ['codigo_barras', 'sucursal_id'],
-                }
+            {
+                model: this.tipoMovimientoModel,
+                where: { descripcion: 'Entrada' },
+                attributes: [],
+            },
+            {
+                model: this.model.sequelize.models.Producto_Inventario,
+                attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
+                required: false,
+            }
             ],
             order: [['fecha_movimiento', 'DESC']],
             raw: true,
@@ -90,17 +91,18 @@ export class MovimientoInventarioRepository {
 
     async getSalidasBySucursal(sucursal_id) {
         return await this.model.findAll({
+            where: { sucursal_id },
             include: [
-                {
-                    model: this.tipoMovimientoModel,
-                    where: { descripcion: 'Salida' },
-                    attributes: [],
-                },
-                {
-                    model: this.model.sequelize.models.Producto_Inventario,
-                    where: { sucursal_id },
-                    attributes: ['codigo_barras', 'sucursal_id'],
-                },
+            {
+                model: this.tipoMovimientoModel,
+                where: { descripcion: 'Salida' },
+                attributes: [],
+            },
+            {
+                model: this.model.sequelize.models.Producto_Inventario,
+                attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
+                required: false,
+            },
             ],
             order: [['fecha_movimiento', 'DESC']],
             raw: true,

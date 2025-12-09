@@ -70,7 +70,10 @@ Usuario.init({
     freezeTableName: true,
     tableName: 'usuario',
     timestamps: false,
-    fecha_ingreso: 'fecha_ingreso', // Para evitar error de que no existe la columna
+    fecha_ingreso: 'fecha_ingreso',
+    defaultScope: {
+        where: { is_active: true }
+    }
 });
 
 Usuario.belongsTo(Sucursal, {

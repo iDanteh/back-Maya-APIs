@@ -123,7 +123,6 @@ export const deleteLot = async (req, res) => {
         const result = await repoProductoInventario.deleteLot(sucursal_id, codigo_barras, lote);
         res.json({ message: 'Lote eliminado correctamente' });
     } catch (error) {
-        // Mejoraría el manejo de diferentes tipos de errores
         if (error.message.includes('No se puede eliminar')) {
             return res.status(400).json({ error: error.message });
         }
