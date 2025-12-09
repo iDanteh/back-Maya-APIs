@@ -142,7 +142,6 @@ export const sucursalAccess = async (req, res) => {
         res.status(200).json({ message: 'Acceso permitido', access });
 
     } catch (error) {
-        // Cualquier otro error inesperado
         console.error('Error inesperado en sucursalAccess:', error.message);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
