@@ -71,7 +71,6 @@ export class MovimientoInventarioRepository {
 
     async getEntradasBySucursal(sucursal_id) {
         return await this.model.findAll({
-            where: { sucursal_id },
             include: [
             {
                 model: this.tipoMovimientoModel,
@@ -80,8 +79,9 @@ export class MovimientoInventarioRepository {
             },
             {
                 model: this.model.sequelize.models.Producto_Inventario,
+                where: { sucursal_id },
                 attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
-                required: false,
+                required: true,
             }
             ],
             order: [['fecha_movimiento', 'DESC']],
@@ -91,7 +91,6 @@ export class MovimientoInventarioRepository {
 
     async getSalidasBySucursal(sucursal_id) {
         return await this.model.findAll({
-            where: { sucursal_id },
             include: [
             {
                 model: this.tipoMovimientoModel,
@@ -100,13 +99,14 @@ export class MovimientoInventarioRepository {
             },
             {
                 model: this.model.sequelize.models.Producto_Inventario,
+                where: { sucursal_id },
                 attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
-                required: false,
+                required: true,
             },
             ],
             order: [['fecha_movimiento', 'DESC']],
             raw: true,
         });
-    }
+        }
 
 }
