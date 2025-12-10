@@ -18,11 +18,24 @@ export class ProductoRepository {
 
     async update(codigo_barras, productData) {
         try {
-            const product = await this.model.findByPk(codigo_barras);
+            const product = await this.model.scope('withInactive').findByPk(codigo_barras);
             if (!product) return null;
-            if (product.precio_maximo !== productData.precio_maximo) {
+
+            if (Object.prototype.hasOwnProperty.call(productData, 'precio_maximo')) {
+            const sanitizeMoney = (v) =>
+                v == null ? null : Number(String(v).replace(/[^\d.-]/g, ''));
+
+            const oldNum = sanitizeMoney(product.precio_maximo);
+            const newNum = sanitizeMoney(productData.precio_maximo);
+
+            if (Number.isFinite(oldNum) && Number.isFinite(newNum)) {
+                if (oldNum !== newNum) {
                 productData.precio_max_anterior = product.precio_maximo;
                 productData.fecha_updt_precio = new Date();
+                } else {
+                delete productData.precio_maximo;
+                }
+            }
             }
 
             return await product.update(productData);
