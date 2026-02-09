@@ -302,10 +302,10 @@ export class VentaRepository {
 
     async getCorteCaja(sucursal_id, usuario_id, fecha, tipo = 'dia') {
         const { start, end } = this._getRange(fecha, tipo);
-        console.log('🕒 Rango de fechas (semiabierto):', { start, end });
+        console.log('Rango de fechas (semiabierto):', { start, end });
 
         const usuario = await Usuario.findByPk(Number(usuario_id), {
-            attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'sucursal_id']
+            attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'rol', 'sucursal_id']
         });
 
         if (!usuario) {
@@ -321,13 +321,13 @@ export class VentaRepository {
                 fecha_venta: { [Op.gte]: start, [Op.lt]: end }
             },
             include: [
-                { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno'] },
+                { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'rol'] },
                 { model: Sucursal, attributes: ['sucursal_id'] }
             ],
             order: [['fecha_venta', 'ASC']]
         });
 
-        // Totales del propio usuario
+        // 2) Total del propio usuario
         const [totalUsuarioRow] = await this.ventaModel.findAll({
             attributes: [[fn('COALESCE', fn('SUM', col('total')), 0), 'total_usuario']],
             where: {
@@ -340,9 +340,17 @@ export class VentaRepository {
         });
         const total_usuario = Number(totalUsuarioRow?.total_usuario ?? 0);
 
+        // 3) Total del turno 
         const [totalTurnoRow] = await this.ventaModel.findAll({
             attributes: [[fn('COALESCE', fn('SUM', col('total')), 0), 'total_turno']],
-            include: [{ model: Usuario, attributes: [], where: { turno: usuario.turno } }],
+            include: [{ 
+                model: Usuario, 
+                attributes: [], 
+                where: { 
+                    turno: usuario.turno,
+                    rol: 'trabajador'
+                } 
+            }],
             where: {
                 sucursal_id,
                 anulada: false,
@@ -361,7 +369,14 @@ export class VentaRepository {
                 usuario_id: { [Op.ne]: Number(usuario_id) }
             },
             include: [
-                { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno'], where: { turno: usuario.turno } },
+                { 
+                    model: Usuario, 
+                    attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'rol'], 
+                    where: { 
+                        turno: usuario.turno,
+                        rol: 'trabajador'
+                    } 
+                },
                 { model: Sucursal, attributes: ['sucursal_id'] }
             ],
             order: [['fecha_venta', 'ASC']]
@@ -379,8 +394,70 @@ export class VentaRepository {
                 anulada: false,
                 fecha_venta: { [Op.gte]: start, [Op.lt]: end }
             },
-            include: [{ model: Usuario, attributes: [], where: { turno: usuario.turno } }],
+            include: [{ 
+                model: Usuario, 
+                attributes: [], 
+                where: { 
+                    turno: usuario.turno,
+                    rol: 'trabajador'
+                } 
+            }],
             group: ['usuario_id', 'Usuario.turno'],
+            raw: true
+        });
+
+        const ventasAdministradores = await this.ventaModel.findAll({
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            include: [
+                { 
+                    model: Usuario, 
+                    attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'rol'],
+                    where: { rol: 'administrador' }
+                },
+                { model: Sucursal, attributes: ['sucursal_id'] }
+            ],
+            order: [['fecha_venta', 'ASC']]
+        });
+
+        const [totalAdministradoresRow] = await this.ventaModel.findAll({
+            attributes: [[fn('COALESCE', fn('SUM', col('total')), 0), 'total_administradores']],
+            include: [{ 
+                model: Usuario, 
+                attributes: [], 
+                where: { rol: 'administrador' } 
+            }],
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            raw: true
+        });
+        const total_administradores = Number(totalAdministradoresRow?.total_administradores ?? 0);
+
+        const agregadosAdministradoresRows = await this.ventaModel.findAll({
+            attributes: [
+                'usuario_id',
+                [col('Usuario.nombre'), 'nombre'],
+                [col('Usuario.apellido'), 'apellido'],
+                [fn('COUNT', col('venta_id')), 'num_ventas'],
+                [fn('SUM', col('total')), 'total_vendido']
+            ],
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            include: [{ 
+                model: Usuario, 
+                attributes: [], 
+                where: { rol: 'administrador' } 
+            }],
+            group: ['usuario_id', 'Usuario.nombre', 'Usuario.apellido'],
             raw: true
         });
 
@@ -390,27 +467,36 @@ export class VentaRepository {
             usuario: {
                 usuario_id: usuario.usuario_id,
                 nombre: `${usuario.nombre}${usuario.apellido ? ' ' + usuario.apellido : ''}`.trim(),
-                turno: usuario.turno
+                turno: usuario.turno,
+                rol: usuario.rol
             },
-            ventas_usuario: ventasUsuario, 
-            ventas_mismo_turno_otros: ventasMismoTurnoOtros, 
+            ventas_usuario: ventasUsuario,
+            ventas_mismo_turno_otros: ventasMismoTurnoOtros,
+            ventas_administradores: ventasAdministradores,
             agregados_mismo_turno_por_usuario: agregadosTurnoRows.map(r => ({
                 usuario_id: r.usuario_id,
                 turno: r.turno ?? 'sin_turno',
                 num_ventas: Number(r.num_ventas),
                 total_vendido: Number(r.total_vendido)
-            })), 
+            })),
+            agregados_administradores: agregadosAdministradoresRows.map(r => ({
+                usuario_id: r.usuario_id,
+                nombre: `${r.nombre}${r.apellido ? ' ' + r.apellido : ''}`.trim(),
+                num_ventas: Number(r.num_ventas),
+                total_vendido: Number(r.total_vendido)
+            })),
             totales: {
                 total_usuario,
                 total_turno,
-                total_otros_mismo_turno
+                total_otros_mismo_turno,
+                total_administradores
             }
         };
     }
 
     async getCorteCajaSucursal(sucursal_id, fecha, tipo = 'dia') {
         const { start, end } = this._getRange(fecha, tipo);
-        console.log('🕒 Rango de fechas (semiabierto):', { start, end });
+        console.log('Rango de fechas (semiabierto):', { start, end });
 
         const ventas = await this.ventaModel.findAll({
             where: {
