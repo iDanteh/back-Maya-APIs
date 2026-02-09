@@ -33,7 +33,7 @@ Usuario.init({
     },
     turno: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        allowNull: true,
     },
     fecha_ingreso: {
         type: DataTypes.DATE,

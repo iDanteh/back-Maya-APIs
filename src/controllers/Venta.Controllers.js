@@ -144,25 +144,25 @@ export const anularVenta = async (req, res) => {
 export const getVentasPorUsuarioYFecha = async (req, res) => {
     const { sucursal_id, usuario_id, fecha, tipo = 'dia' } = req.params;
 
-    console.log('🔍 Petición recibida con params:', { sucursal_id, usuario_id, fecha, tipo });
+    console.log('Petición recibida con params:', { sucursal_id, usuario_id, fecha, tipo });
 
     if (!usuario_id || !fecha || !sucursal_id) {
-        console.warn('⚠️ Falta usuario_id, fecha o sucursal_id');
+        console.warn('Falta usuario_id, fecha o sucursal_id');
         return res.status(400).json({ message: 'Faltan parámetros usuario_id o fecha' });
     }
 
     try {
         const venta = await ventaRepository.getCorteCaja(sucursal_id, usuario_id, fecha, tipo);
-        console.log('📦 Ventas encontradas:', venta.length);
+        console.log(' Ventas encontradas:', venta.length);
 
         if (!venta || venta.length === 0) {
-            console.warn('❌ No se encontraron ventas para ese usuario y fecha');
+            console.warn(' No se encontraron ventas para ese usuario y fecha');
             return res.status(404).json({ message: 'Venta no encontrada' });
         }
 
         res.json(venta);
     } catch (error) {
-        console.error('🔥 Error al obtener ventas', error);
+        console.error('Error al obtener ventas', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
@@ -170,25 +170,25 @@ export const getVentasPorUsuarioYFecha = async (req, res) => {
 export const getVentasPorSucursalYFecha = async (req, res) => {
     const { sucursal_id, fecha, tipo = 'dia' } = req.params;
 
-    console.log('🔍 Petición recibida con params:', { sucursal_id, fecha, tipo });
+    console.log('Petición recibida con params:', { sucursal_id, fecha, tipo });
 
     if (!sucursal_id || !fecha) {
-        console.warn('⚠️ Falta sucursal_id o fecha');
+        console.warn('Falta sucursal_id o fecha');
         return res.status(400).json({ message: 'Faltan parámetros sucursal_id o fecha' });
     }
 
     try {
         const venta = await ventaRepository.getCorteCajaSucursal(sucursal_id, fecha, tipo);
-        console.log('📦 Ventas encontradas:', venta.length);
+        console.log('Ventas encontradas:', venta.length);
 
         if (!venta || venta.length === 0) {
-            console.warn('❌ No se encontraron ventas para ese usuario y fecha');
+            console.warn('No se encontraron ventas para ese usuario y fecha');
             return res.status(404).json({ message: 'Venta no encontrada' });
         }
 
         res.status(200).json(venta);
     } catch (error) {
-        console.error('🔥 Error al obtener ventas', error);
+        console.error('Error al obtener ventas', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
