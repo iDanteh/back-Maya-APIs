@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getVenta, getVentasByFecha, getVentasBySucursal,
     createVenta, anularVenta, getVentasPorUsuarioYFecha,
-    getVentasPorSucursalYFecha
+    getVentasPorSucursalYFecha, cancelarVenta
 } from "../controllers/Venta.Controllers.js";
 import { verifyToken } from '../middlewares/auth.js';
 
@@ -26,5 +26,7 @@ router.get('/api/v1/ventas',  getVentasByFecha);
 router.get('/api/v1/ventas/cortePersonal/:sucursal_id/:usuario_id/:fecha/:tipo?',  getVentasPorUsuarioYFecha);
 
 router.get('/api/v1/ventas/corteSucursal/sucursal/:sucursal_id/:fecha/:tipo?', getVentasPorSucursalYFecha);
+
+router.put('/api/v1/ventas/:venta_id/cancelar', cancelarVenta);
 
 export default router;

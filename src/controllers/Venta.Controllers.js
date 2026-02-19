@@ -192,3 +192,35 @@ export const getVentasPorSucursalYFecha = async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
+
+export const cancelarVenta = async (req, res) => {
+    try {
+        const { venta_id } = req.params;
+
+        if (!venta_id) {
+        return res.status(400).json({ error: 'Se requiere venta_id' });
+        }
+
+        const resultado = await ventaRepository.cancelarVenta(venta_id);
+
+        return res.status(200).json({
+        success: true,
+        message: 'Venta cancelada exitosamente',
+        data: resultado,
+        });
+    } catch (error) {
+        const msg = error?.message || 'Error interno';
+
+        const status =
+        msg.includes('no encontrada') ? 404 :
+        msg.includes('ya está anulada') ? 400 :
+        msg.includes('no tiene detalles') ? 400 :
+        500;
+
+        return res.status(status).json({
+        success: false,
+        error: 'Error al cancelar la venta',
+        details: msg,
+        });
+    }
+};

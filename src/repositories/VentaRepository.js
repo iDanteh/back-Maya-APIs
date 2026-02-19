@@ -559,4 +559,100 @@ export class VentaRepository {
             ventas
         };
     }
+
+    async cancelarVenta(venta_id) {
+        const transaction = await this.ventaModel.sequelize.transaction();
+
+        try {
+        // 1) Bloquear/leer venta
+        const venta = await this.ventaModel.findByPk(venta_id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+        });
+
+        if (!venta) throw new Error('Venta no encontrada');
+        if (venta.anulada) throw new Error('La venta ya está anulada');
+
+        // 2) Leer detalles
+        const detalles = await this.detalleVentaModel.findAll({
+            where: { venta_id },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+        });
+
+        if (!detalles || detalles.length === 0) {
+            throw new Error('La venta no tiene detalles para reintegrar');
+        }
+
+        // 3) Reintegrar existencias
+        for (const d of detalles) {
+            // Caso ideal: detalle ya trae producto_inventario_id (lote exacto)
+            let productoInventario = null;
+
+            if (d.producto_inventario_id) {
+            productoInventario = await this.productoInventarioModel.findByPk(d.producto_inventario_id, {
+                transaction,
+                lock: transaction.LOCK.UPDATE,
+            });
+            }
+
+            // Fallback: si por alguna razón no viene producto_inventario_id,
+            // reintegrar por sucursal + codigo (NO es ideal para lotes múltiples)
+            if (!productoInventario) {
+            productoInventario = await this.productoInventarioModel.findOne({
+                where: {
+                sucursal_id: venta.sucursal_id,
+                codigo_barras: d.codigo_barras,
+                },
+                transaction,
+                lock: transaction.LOCK.UPDATE,
+            });
+            }
+
+            if (!productoInventario) {
+            // Decide si quieres fallar duro o ignorar. Yo recomiendo fallar.
+            throw new Error(
+                `No se encontró producto_inventario para reintegrar: codigo=${d.codigo_barras} detalle_id=${d.detalle_venta_id}`
+            );
+            }
+
+            // Incremento atómico de existencias
+            await this.productoInventarioModel.update(
+            {
+                existencias: sequelize.literal(`existencias + ${Number(d.cantidad)}`),
+                fecha_ultima_actualizacion: new Date(),
+            },
+            {
+                where: { producto_inventario_id: productoInventario.producto_inventario_id },
+                transaction,
+            }
+            );
+
+            // Registrar movimiento (tipo 6 = anulación, según tu repo actual)
+            await this.movimientoInventarioModel.create(
+            {
+                producto_inventario_id: productoInventario.producto_inventario_id,
+                tipo_movimiento_id: 6,
+                cantidad: Number(d.cantidad),
+                referencia: `VENTA_CANCELADA_${venta_id}`,
+                observaciones: 'Reintegro por cancelación de venta',
+                fecha_movimiento: new Date(),
+            },
+            { transaction }
+            );
+        }
+
+        // 4) Marcar venta como anulada
+        await this.ventaModel.update(
+            { anulada: true },
+            { where: { venta_id }, transaction }
+        );
+
+        await transaction.commit();
+        return { success: true, venta_id, message: 'Venta cancelada y existencias reintegradas' };
+        } catch (error) {
+        await transaction.rollback();
+        throw error;
+        }
+    }
 };
