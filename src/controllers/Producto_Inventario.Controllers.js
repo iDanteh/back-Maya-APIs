@@ -90,7 +90,7 @@ export const addMultipleProductsToInventory = async (req, res) => {
     try {
 
         const { sucursal_id } = req.params;
-        const productsData = req.body.productos; // Accede correctamente a los productos
+        const productsData = req.body.productos;
 
         if (!Array.isArray(productsData)) {
             return res.status(400).json({ error: "El campo 'productos' debe ser un array." });

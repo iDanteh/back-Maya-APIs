@@ -128,78 +128,95 @@ export class producto_inventarioRepository {
         const transaction = await this.model.sequelize.transaction();
         try {
             const orConditions = productsData.map(p => ({
-                sucursal_id,
-                codigo_barras: p.codigo_barras,
-                lote: p.lote
+            sucursal_id,
+            codigo_barras: p.codigo_barras,
+            lote: p.lote,
+            [Op.and]: [
+                Sequelize.where(
+                Sequelize.fn('DATE', Sequelize.col('fecha_caducidad')),
+                '=',
+                String(p.fecha_caducidad).slice(0, 10)
+                )
+            ]
             }));
-        
-            const existingProducts = await this.model.findAll({
-                where: { [Op.or]: orConditions },
-                transaction,
-            });
-        
-            const updates = [];
-            const newEntries = [];
-        
-            for (const product of productsData) {
-                const existingProduct = existingProducts.find(
-                    p => p.codigo_barras === product.codigo_barras && 
-                        p.lote === product.lote && 
-                        p.sucursal_id === sucursal_id
-                );
-        
-                if (existingProduct) {
-                    existingProduct.existencias += product.existencias;
-                    existingProduct.fecha_ultima_actualizacion = new Date();
-                    updates.push(existingProduct);
-        
-                    await this.movimientoRepo.createMovimiento({
-                        producto_inventario_id: existingProduct.producto_inventario_id,
-                        tipo_movimiento_nombre: 'Entrada',
-                        cantidad: product.existencias,
-                        referencia: `Lote: ${existingProduct.lote}`,
-                        observaciones: 'Abastecimiento del inventario',
-                        codigo_barras: existingProduct.codigo_barras,
-                        lote: existingProduct.lote,
-                        sucursal_id
-                    }, { transaction });
 
-                } else {
-                    newEntries.push({
-                        ...product,
-                        sucursal_id,
-                        fecha_ultima_actualizacion: new Date()
-                    });
-                }
-            }
-        
-            if (updates.length > 0) {
-                await Promise.all(updates.map(p => p.save({ transaction })));
-            }
-        
-            // Crear nuevos productos y registrar movimiento
-            for (const newProduct of newEntries) {
-                const createdProduct = await this.model.create(newProduct, { transaction });
+            const existingProducts = await this.model.findAll({
+            where: { [Op.or]: orConditions },
+            transaction,
+            });
+
+            const ymdOf = (v) => String(v).slice(0, 10);
+
+            const keyOf = (x) => `${String(x.codigo_barras)}||${x.lote}||${ymdOf(x.fecha_caducidad)}`;
+            const existingMap = new Map(existingProducts.map(p => [keyOf(p), p]));
+
+            const updatesMap = new Map();
+            const newEntries = [];
+
+            for (const product of productsData) {
+            const inc = Number(product.existencias || 0);
+            const k = keyOf(product);
+
+            const existingProduct = existingMap.get(k);
+
+            if (existingProduct) {
+                existingProduct.existencias = Number(existingProduct.existencias || 0) + inc;
+                existingProduct.fecha_ultima_actualizacion = new Date();
+                existingProduct.is_active = true;
+
+                updatesMap.set(k, existingProduct);
+
                 await this.movimientoRepo.createMovimiento({
-                    producto_inventario_id: createdProduct.producto_inventario_id,
-                    tipo_movimiento_nombre: 'Entrada',
-                    cantidad: newProduct.existencias,
-                    referencia: `Lote: ${newProduct.lote}`,
-                    observaciones: 'Nuevo lote ingresado',
-                    codigo_barras: newProduct.codigo_barras,
-                    lote: newProduct.lote,
-                    sucursal_id
+                producto_inventario_id: existingProduct.producto_inventario_id,
+                tipo_movimiento_nombre: 'Entrada',
+                cantidad: inc,
+                referencia: `Lote: ${existingProduct.lote}`,
+                observaciones: existingProduct.is_active
+                    ? 'Abastecimiento del inventario (reactivado si estaba inactivo)'
+                    : 'Abastecimiento del inventario',
+                codigo_barras: existingProduct.codigo_barras,
+                lote: existingProduct.lote,
+                sucursal_id
                 }, { transaction });
+
+            } else {
+                newEntries.push({
+                ...product,
+                sucursal_id,
+                is_active: true,
+                fecha_ultima_actualizacion: new Date(),
+                });
             }
-        
+            }
+
+            const updates = Array.from(updatesMap.values());
+            if (updates.length > 0) {
+            await Promise.all(updates.map(p => p.save({ transaction })));
+            }
+
+            for (const newProduct of newEntries) {
+            const createdProduct = await this.model.create(newProduct, { transaction });
+
+            await this.movimientoRepo.createMovimiento({
+                producto_inventario_id: createdProduct.producto_inventario_id,
+                tipo_movimiento_nombre: 'Entrada',
+                cantidad: Number(newProduct.existencias || 0),
+                referencia: `Lote: ${newProduct.lote}`,
+                observaciones: 'Nuevo lote ingresado',
+                codigo_barras: newProduct.codigo_barras,
+                lote: newProduct.lote,
+                sucursal_id
+            }, { transaction });
+            }
+
             await transaction.commit();
             return { updated: updates.length, inserted: newEntries.length };
+
         } catch (error) {
             await transaction.rollback();
             throw error;
         }
     }
-
     // Método para eliminar un lote de un producto en un inventario
     async deleteLot(sucursal_id, codigo_barras, lote) {
         const lot = await this.model.findOne({
