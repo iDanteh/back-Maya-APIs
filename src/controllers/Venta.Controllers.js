@@ -54,8 +54,13 @@ export const createVenta = async (req, res) => {
         });
         
     } catch (error) {
-    const msg = error?.response?.data?.details || error?.response?.data?.error || 'Error al procesar la venta.';
-    showNotification('Error', msg, 'error');
+        const statusCode = error.message.includes('No hay suficiente stock') || 
+                          error.message.includes('no encontrado') ? 400 : 500;
+        
+        res.status(statusCode).json({ 
+            error: 'Error al registrar la venta',
+            details: error.message 
+        });
     }
 };
 
