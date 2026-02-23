@@ -14,6 +14,13 @@ dayjs.extend(timezone);
 
 const ventaRepository = new VentaRepository(Venta, Detalle_Venta, Producto_Inventario, Inventario, MovimientoInventario);
 
+function buildVentaId(sucursal_id) {
+    const suc = String(sucursal_id).slice(0, 3).toUpperCase();
+    const ts = dayjs().format("YYMMDDHHmmss");
+    const rnd = Math.floor(Math.random() * 100).toString().padStart(2, "0");
+    return `V${suc}${ts}${rnd}`;
+}
+
 export const createVenta = async (req, res) => {
     try {
         const { sucursal_id, usuario_id, total, total_recibido, detalles } = req.body;
@@ -28,13 +35,14 @@ export const createVenta = async (req, res) => {
             return res.status(400).json({ error: 'Todos los productos deben especificar un lote' });
         }
 
+        const rnd = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
         const ventaData = {
-            venta_id: `V${sucursal_id}-${Date.now()}`,
+            venta_id: buildVentaId(sucursal_id),
             sucursal_id,
             usuario_id,
             total,
             total_recibido: total_recibido || total,
-            numero_factura: `FAC-${sucursal_id}-${Date.now()}-${usuario_id}`,
+            numero_factura: `FAC-${sucursal_id}-${Date.now()}-${usuario_id}-${rnd}`,
             fecha_venta: new Date()
         };
 
@@ -46,13 +54,8 @@ export const createVenta = async (req, res) => {
         });
         
     } catch (error) {
-        const statusCode = error.message.includes('No hay suficiente stock') || 
-                          error.message.includes('no encontrado') ? 400 : 500;
-        
-        res.status(statusCode).json({ 
-            error: 'Error al registrar la venta',
-            details: error.message 
-        });
+    const msg = error?.response?.data?.details || error?.response?.data?.error || 'Error al procesar la venta.';
+    showNotification('Error', msg, 'error');
     }
 };
 
