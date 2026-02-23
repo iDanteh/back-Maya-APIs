@@ -194,110 +194,27 @@ export class VentaRepository {
         }
     }
 
-    async getCorteCaja(sucursal_id, usuario_id, fecha, tipo = 'dia') {
-        const parsedDate = dayjs(fecha, 'YYYY-MM-DD');
-
-        let start, end;
-
-        if (tipo === 'semana') {
-            start = parsedDate.startOf('week').toDate();
-            end = parsedDate.endOf('week').toDate();
-        } else if (tipo === 'mes') {
-            start = parsedDate.startOf('month').toDate();
-            end = parsedDate.endOf('month').toDate();
-        } else {
-            start = parsedDate.startOf('day').toDate();
-            end = parsedDate.endOf('day').toDate();
-        }
-
-        console.log('🕒 Rango de fechas:', { start, end });
-
-        const usuario = await Usuario.findByPk(Number(usuario_id), {
-            attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'sucursal_id']
-        });
-
-        if (!usuario) {
-            return { error: 'Usuario no encontrado' };
-        }
-
-        const ventasUsuario = await this.ventaModel.findAll({
-            where: {
-                usuario_id: Number(usuario_id),
-                sucursal_id,
-                fecha_venta: { [Op.between]: [start, end] },
-                anulada: false
-            }, 
-            include: [
-                {
-                    model: Usuario,
-                    attributes: { 
-                        exclude: [
-                            'telefono', 'email', 'rol', 'fecha_ingreso', 'usuario', 'clave_acceso'
-                        ]
-                    }
-                }
-            ]
-        });
-
-        const [totalUsuarioRow] = await this.ventaModel.findAll({
-            attributes: [[sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total')), 0), 'total_usuario']],
-            where: {
-                usuario_id: Number(usuario_id),
-                sucursal_id,
-                anulada: false,
-                fecha_venta: { [Op.between]: [start, end] }
-            },
-            raw: true
-        });
-
-        const total_usuario = Number(totalUsuarioRow.total_usuario);
-
-        const [totalTurnoRow] = await this.ventaModel.findAll({
-            attributes: [[sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total')), 0), 'total_turno']],
-            include: [
-                {
-                    model: Usuario,
-                    attributes: [],
-                    where: { turno: usuario.turno }
-                }
-            ],
-            where: {
-                sucursal_id,
-                anulada: false,
-                fecha_venta: { [Op.between]: [start, end] }
-            },
-            raw: true
-        });
-
-        const total_turno = Number(totalTurnoRow.total_turno);
-
-        return {
-            rango: { start, end },
-            usuario: {
-                usuario_id: usuario.usuario_id,
-                nombre: `${usuario.nombre}${usuario.apellido ? ' ' + usuario.apellido : ''}`.trim(),
-                turno: usuario.turno,
-            },
-            detalle_ventas: ventasUsuario,
-            totales: {
-                total_usuario,
-                total_turno,
-            }
-        };
-    }
-
     _getRange(fecha, tipo = 'dia') {
-        const d = dayjs(fecha, 'YYYY-MM-DD');
+        const d = dayjs(fecha, 'YYYY-MM-DD', true); 
+        if (!d.isValid()) throw new Error('Fecha inválida (formato esperado YYYY-MM-DD)');
+
         if (tipo === 'semana') {
-            const start = d.startOf('week');
-            return { start: start.toDate(), end: start.add(1, 'week').toDate() };
+            const dow = d.day();
+            const diffToMonday = (dow + 6) % 7;
+            const start = d.startOf('day').subtract(diffToMonday, 'day'); 
+            const end = start.add(7, 'day');
+            return { start: start.toDate(), end: end.toDate() };
         }
+
         if (tipo === 'mes') {
             const start = d.startOf('month');
-            return { start: start.toDate(), end: start.add(1, 'month').toDate() };
+            const end = start.add(1, 'month'); // fin exclusivo
+            return { start: start.toDate(), end: end.toDate() };
         }
+
         const start = d.startOf('day');
-        return { start: start.toDate(), end: start.add(1, 'day').toDate() };
+        const end = start.add(1, 'day'); // fin exclusivo
+        return { start: start.toDate(), end: end.toDate() };
     }
 
     async getCorteCaja(sucursal_id, usuario_id, fecha, tipo = 'dia') {

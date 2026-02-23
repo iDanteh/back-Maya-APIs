@@ -25,7 +25,7 @@ export class producto_inventarioRepository {
                         {
                             model: Categoria,
                             as: 'categoria',
-                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto']
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto', 'is_active']
                         }
                     ]
                 }
@@ -55,7 +55,7 @@ export class producto_inventarioRepository {
     // Nuevo método para buscar un producto específico en un inventario por código de barras
     async findByBarcodeInInventory(sucursal_id, codigo_barras) {
         return await this.model.findAll({
-            where: { sucursal_id, codigo_barras },
+            where: { sucursal_id, codigo_barras, is_active: true },
             include: [
                 {
                     model: Producto,
@@ -64,7 +64,7 @@ export class producto_inventarioRepository {
                         {
                             model: Categoria,
                             as: 'categoria',
-                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto']
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto', 'is_active']
                         }
                     ]
                 }
@@ -145,9 +145,14 @@ export class producto_inventarioRepository {
             transaction,
             });
 
-            const ymdOf = (v) => String(v).slice(0, 10);
+            const ymdOf = (v) => {
+            if (!v) return null;
+            const d = (v instanceof Date) ? v : new Date(v);
+            if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
+            return d.toISOString().slice(0, 10);
+            };
 
-            const keyOf = (x) => `${String(x.codigo_barras)}||${x.lote}||${ymdOf(x.fecha_caducidad)}`;
+            const keyOf = (x) => `${String(x.codigo_barras)}||${String(x.lote)}||${ymdOf(x.fecha_caducidad)}`;
             const existingMap = new Map(existingProducts.map(p => [keyOf(p), p]));
 
             const updatesMap = new Map();
