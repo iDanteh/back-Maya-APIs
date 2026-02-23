@@ -25,7 +25,7 @@ export class producto_inventarioRepository {
                         {
                             model: Categoria,
                             as: 'categoria',
-                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto', 'is_active']
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto']
                         }
                     ]
                 }
@@ -64,7 +64,7 @@ export class producto_inventarioRepository {
                         {
                             model: Categoria,
                             as: 'categoria',
-                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto', 'is_active']
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto',]
                         }
                     ]
                 }
