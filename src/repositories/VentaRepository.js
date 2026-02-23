@@ -55,35 +55,55 @@ export class VentaRepository {
     }
 
     async actualizarInventarioPorLote(sucursal_id, codigo_barras, lote, cantidad, transaction) {
-        // 1. Buscar el producto en el inventario específico por sucursal, lote y código
+        const qty = Number(cantidad || 0);
+
+        // 1) Tomar el registro correcto: activo y con stock
         const productoInventario = await this.productoInventarioModel.findOne({
-            where: { 
-                sucursal_id,
-                codigo_barras,
-                lote
+            where: {
+            sucursal_id,
+            codigo_barras,
+            lote,
+            is_active: true,
+            existencias: { [Op.gte]: qty },
             },
-            transaction
+            order: [
+            ['existencias', 'DESC'],
+            ['fecha_ultima_actualizacion', 'DESC'],
+            ['producto_inventario_id', 'DESC'],
+            ],
+            transaction,
+            lock: transaction.LOCK.UPDATE,
         });
 
         if (!productoInventario) {
-            throw new Error(`No se encontró el producto ${codigo_barras} en el lote ${lote} para la sucursal ${sucursal_id}`);
+            const candidatos = await this.productoInventarioModel.findAll({
+            where: { sucursal_id, codigo_barras, lote },
+            attributes: ['producto_inventario_id', 'existencias', 'is_active', 'fecha_ultima_actualizacion'],
+            order: [['producto_inventario_id', 'ASC']],
+            transaction,
+            });
+
+            throw new Error(
+            `No hay suficiente stock para el producto ${codigo_barras} en el lote ${lote}. ` +
+            `Candidatos=${JSON.stringify(candidatos)}`
+            );
         }
 
-        // 2. Validar existencias suficientes
-        if (productoInventario.existencias < cantidad) {
-            throw new Error(`No hay suficiente stock para el producto ${codigo_barras} en el lote ${lote}`);
-        }
+        // 2) Descontar
+        await productoInventario.update(
+            {
+            existencias: productoInventario.existencias - qty,
+            fecha_ultima_actualizacion: new Date(),
+            is_active: (productoInventario.existencias - qty) > 0, // opcional
+            },
+            { transaction }
+        );
 
-        // 3. Actualizar existencias
-        productoInventario.existencias -= cantidad;
-        productoInventario.fecha_ultima_actualizacion = new Date();
-        await productoInventario.save({ transaction });
-
-        // 4. Registrar el movimiento del inventario
+        // 3) Movimiento
         await this.movimientoInventarioModel.create({
             producto_inventario_id: productoInventario.producto_inventario_id,
             tipo_movimiento_id: 5,
-            cantidad,
+            cantidad: qty,
             referencia: productoInventario.lote,
             observaciones: 'Venta de productos',
         }, { transaction });
