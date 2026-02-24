@@ -119,36 +119,6 @@ export const getVentasByFecha = async (req, res) => {
     }
 };
 
-export const anularVenta = async (req, res) => {
-    try {
-        const { venta_id } = req.params;
-        
-        if (!venta_id) {
-            return res.status(400).json({ error: 'Se requiere el ID de la venta' });
-        }
-
-        // Anular la venta y reintegrar existencias
-        const resultado = await ventaRepository.anularVenta(venta_id);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Venta anulada exitosamente',
-            data: resultado
-        });
-        
-    } catch (error) {
-        console.error('Error en anularVenta:', error);
-        
-        const statusCode = error.message.includes('no encontrada') ? 404 : 
-                          error.message.includes('ya está anulada') ? 400 : 500;
-        
-        res.status(statusCode).json({ 
-            error: 'Error al anular la venta',
-            details: error.message 
-        });
-    }
-};
-
 export const getVentasPorUsuarioYFecha = async (req, res) => {
     const { sucursal_id, usuario_id, fecha, tipo = 'dia' } = req.params;
 
