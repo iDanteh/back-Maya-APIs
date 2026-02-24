@@ -128,92 +128,6 @@ export class VentaRepository {
             where: { sucursal_id }});
     }
 
-    async anularVenta(venta_id) {
-        const transaction = await this.ventaModel.sequelize.transaction();
-        try {
-            // 1. Obtener información básica de la venta
-            const venta = await this.ventaModel.findByPk(venta_id, { transaction });
-            
-            if (!venta) {
-                throw new Error('Venta no encontrada');
-            }
-            
-            if (venta.anulada) {
-                throw new Error('La venta ya está anulada');
-            }
-    
-            // 2. Obtener los detalles de venta directamente (sin asociaciones)
-            const detalles = await this.detalleVentaModel.findAll({
-                where: { venta_id: venta_id },
-                transaction
-            });
-    
-            // 3. Reintegrar existencias por cada detalle
-            for (const detalle of detalles) {
-                // Obtener el inventario de la sucursal
-                const inventario = await this.inventarioModel.findOne({
-                    where: { sucursal_id: venta.sucursal_id },
-                    transaction
-                });
-    
-                if (!inventario) continue;
-    
-                // Buscar el producto en el inventario (con o sin lote)
-                const whereClause = {
-                    codigo_barras: detalle.codigo_barras,
-                    inventario_id: inventario.inventario_id
-                };
-                
-                if (detalle.lote) {
-                    whereClause.lote = detalle.lote;
-                }
-    
-                const productoInventario = await this.productoInventarioModel.findOne({
-                    where: whereClause,
-                    transaction
-                });
-    
-                if (productoInventario) {
-                    // Actualizar existencias (sumar la cantidad)
-                    await this.productoInventarioModel.update({
-                        existencias: sequelize.literal(`existencias + ${detalle.cantidad}`),
-                        fecha_ultima_actualizacion: new Date()
-                    }, {
-                        where: { producto_inventario_id: productoInventario.producto_inventario_id },
-                        transaction
-                    });
-    
-                    // Registrar movimiento
-                    await this.movimientoInventarioModel.create({
-                        producto_inventario_id: productoInventario.producto_inventario_id,
-                        tipo_movimiento_id: 6, // ID para anulación
-                        cantidad: detalle.cantidad,
-                        referencia: `VENTA_ANULADA_${venta_id}`,
-                        observaciones: `Reintegro por anulación de venta`,
-                        fecha_movimiento: new Date()
-                    }, { transaction });
-                }
-            }
-    
-            // 4. Marcar la venta como anulada
-            await this.ventaModel.update({
-                anulada: true,
-                fecha_anulacion: new Date()
-            }, {
-                where: { venta_id: venta_id },
-                transaction
-            });
-    
-            await transaction.commit();
-            return { success: true, message: 'Venta anulada y existencias reintegradas' };
-    
-        } catch (error) {
-            await transaction.rollback();
-            console.error('Error en anularVenta:', error);
-            throw new Error(`Error al anular la venta: ${error.message}`);
-        }
-    }
-
     _getRange(fecha, tipo = 'dia') {
         const d = dayjs(fecha, 'YYYY-MM-DD', true); 
         if (!d.isValid()) throw new Error('Fecha inválida (formato esperado YYYY-MM-DD)');
@@ -501,95 +415,120 @@ export class VentaRepository {
         const transaction = await this.ventaModel.sequelize.transaction();
 
         try {
-        // 1) Bloquear/leer venta
-        const venta = await this.ventaModel.findByPk(venta_id, {
+            const venta = await this.ventaModel.findByPk(venta_id, {
             transaction,
             lock: transaction.LOCK.UPDATE,
-        });
+            });
 
-        if (!venta) throw new Error('Venta no encontrada');
-        if (venta.anulada) throw new Error('La venta ya está anulada');
+            if (!venta) throw new Error('Venta no encontrada');
+            if (venta.anulada) throw new Error('La venta ya está anulada');
 
-        // 2) Leer detalles
-        const detalles = await this.detalleVentaModel.findAll({
+            const detalles = await this.detalleVentaModel.findAll({
             where: { venta_id },
             transaction,
             lock: transaction.LOCK.UPDATE,
-        });
+            });
 
-        if (!detalles || detalles.length === 0) {
+            if (!detalles || detalles.length === 0) {
             throw new Error('La venta no tiene detalles para reintegrar');
-        }
+            }
 
-        // 3) Reintegrar existencias
-        for (const d of detalles) {
-            // Caso ideal: detalle ya trae producto_inventario_id (lote exacto)
+            for (const d of detalles) {
+            const qty = Number(d.cantidad);
+
+            if (!Number.isFinite(qty) || qty <= 0) {
+                throw new Error(
+                `Cantidad inválida en detalle_venta_id=${d.detalle_venta_id ?? 'N/A'}: cantidad=${d.cantidad}`
+                );
+            }
+
             let productoInventario = null;
 
             if (d.producto_inventario_id) {
-            productoInventario = await this.productoInventarioModel.findByPk(d.producto_inventario_id, {
+                productoInventario = await this.productoInventarioModel.findByPk(d.producto_inventario_id, {
                 transaction,
                 lock: transaction.LOCK.UPDATE,
-            });
+                });
             }
 
-            // Fallback: si por alguna razón no viene producto_inventario_id,
-            // reintegrar por sucursal + codigo (NO es ideal para lotes múltiples)
-            if (!productoInventario) {
-            productoInventario = await this.productoInventarioModel.findOne({
+            if (!productoInventario && d.lote) {
+                productoInventario = await this.productoInventarioModel.findOne({
                 where: {
-                sucursal_id: venta.sucursal_id,
-                codigo_barras: d.codigo_barras,
+                    sucursal_id: venta.sucursal_id,
+                    codigo_barras: d.codigo_barras,
+                    lote: d.lote,
                 },
+                order: [
+                    ['producto_inventario_id', 'DESC'],
+                ],
                 transaction,
                 lock: transaction.LOCK.UPDATE,
-            });
+                });
             }
 
             if (!productoInventario) {
-            // Decide si quieres fallar duro o ignorar. Yo recomiendo fallar.
-            throw new Error(
-                `No se encontró producto_inventario para reintegrar: codigo=${d.codigo_barras} detalle_id=${d.detalle_venta_id}`
-            );
+                productoInventario = await this.productoInventarioModel.findOne({
+                where: {
+                    sucursal_id: venta.sucursal_id,
+                    codigo_barras: d.codigo_barras,
+                },
+                order: [
+                    ['is_active', 'ASC'],                 
+                    ['existencias', 'ASC'],               
+                    ['fecha_ultima_actualizacion', 'DESC'],
+                    ['producto_inventario_id', 'DESC'],
+                ],
+                transaction,
+                lock: transaction.LOCK.UPDATE,
+                });
+
+                if (productoInventario && !d.lote) {
+                }
             }
 
-            // Incremento atómico de existencias
+            if (!productoInventario) {
+                throw new Error(
+                `No se encontró producto_inventario para reintegrar: ` +
+                `codigo=${d.codigo_barras} detalle_venta_id=${d.detalle_venta_id ?? 'N/A'} ` +
+                `producto_inventario_id=${d.producto_inventario_id ?? 'null'} lote=${d.lote ?? 'null'}`
+                );
+            }
+
             await this.productoInventarioModel.update(
-            {
-                existencias: sequelize.literal(`existencias + ${Number(d.cantidad)}`),
+                {
+                existencias: sequelize.literal(`existencias + ${qty}`),
                 fecha_ultima_actualizacion: new Date(),
-            },
-            {
+                is_active: true,
+                },
+                {
                 where: { producto_inventario_id: productoInventario.producto_inventario_id },
                 transaction,
-            }
+                }
             );
 
-            // Registrar movimiento (tipo 6 = anulación, según tu repo actual)
             await this.movimientoInventarioModel.create(
-            {
+                {
                 producto_inventario_id: productoInventario.producto_inventario_id,
                 tipo_movimiento_id: 6,
-                cantidad: Number(d.cantidad),
+                cantidad: qty,
                 referencia: `VENTA_CANCELADA_${venta_id}`,
-                observaciones: 'Reintegro por cancelación de venta',
+                observaciones: `Reintegro por cancelación de venta (cb=${d.codigo_barras}${productoInventario.lote ? ` lote=${productoInventario.lote}` : ''})`,
                 fecha_movimiento: new Date(),
-            },
-            { transaction }
+                },
+                { transaction }
             );
-        }
+            }
 
-        // 4) Marcar venta como anulada
-        await this.ventaModel.update(
+            await this.ventaModel.update(
             { anulada: true },
             { where: { venta_id }, transaction }
-        );
+            );
 
-        await transaction.commit();
-        return { success: true, venta_id, message: 'Venta cancelada y existencias reintegradas' };
+            await transaction.commit();
+            return { success: true, venta_id, message: 'Venta cancelada y existencias reintegradas' };
         } catch (error) {
-        await transaction.rollback();
-        throw error;
+            await transaction.rollback();
+            throw error;
         }
     }
 };
