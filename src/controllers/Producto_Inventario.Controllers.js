@@ -1,6 +1,7 @@
 import Producto_Inventario from "../models/Producto_Inventario.Model.js";
 import { producto_inventarioRepository } from '../repositories/Producto_InventarioRepository.js'
 import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
+import Producto from "../models/Producto.Model.js";
 import Tipo_Movimiento from '../models/Tipo_Movimiento.Model.js';
 import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js'
 
@@ -24,17 +25,20 @@ export const getProductsByInventory = async (req, res) => {
         const productosSinStock = productos.filter(producto => producto.existencias === 0);
 
         await Promise.all(productosSinStock.map(async (producto) => {
-            try {
-                await repoProductoInventario.deleteLot(sucursal_id, producto.codigo_barras, producto.lote);
-                console.log('Lote eliminado:', producto.lote, 'por cantidad de existencias 0');
-            } catch (error) {
-                console.error(`Error eliminando lote ${producto.lote}:`, error.message);
+            const r = await repoProductoInventario.deleteLot(
+                sucursal_id,
+                producto.codigo_barras,
+                producto.lote
+            );
+
+            if (r?.ok && r?.deactivated) {
+                console.log("Lote inactivado:", producto.lote, "por existencias 0");
             }
         }));
 
-        const productosConStock = productos.filter(producto => producto.existencias > 0);
+        const productosConYSinStock = productos.filter(producto => producto.existencias >= 0);
 
-        res.json(productosConStock);
+        res.json(productosConYSinStock);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -56,15 +60,30 @@ export const getFaltantesProductsByInventory = async (req, res) => {
 export const searchProduct = async (req, res) => {
     try {
         const { sucursal_id, codigo_barras } = req.params;
-        const producto = await repoProductoInventario.findByBarcodeInInventory(sucursal_id, codigo_barras);
-        
+
+        const producto = await Producto.scope("withInactive").findByPk(codigo_barras);
+
         if (!producto) {
-            return res.status(404).json({ message: 'Producto no encontrado en este inventario' });
+        return res.status(404).json({
+            code: "PRODUCTO_NO_EN_SERVIDOR",
+            message: "El código de barras no está dado de alta en el servidor (catálogo de productos).",
+        });
         }
-        
-        res.json(producto);
+
+        const rows = await repoProductoInventario.findByBarcodeInInventory(
+        sucursal_id,
+        codigo_barras
+        );
+
+        const lotsWithStock = (rows || []).filter(r => Number(r.existencias || 0) > 0);
+
+        return res.status(200).json(lotsWithStock);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error(error);
+        return res.status(500).json({
+        code: "INTERNAL_ERROR",
+        message: "Error interno al consultar el producto.",
+        });
     }
 };
 

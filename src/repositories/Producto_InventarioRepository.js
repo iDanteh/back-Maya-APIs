@@ -16,7 +16,7 @@ export class producto_inventarioRepository {
     // Actualización para obtener también la información de los productos
     async findByInventoryId(sucursal_id) {
         return await this.model.findAll({
-            where: { sucursal_id, is_active: true },
+            where: { sucursal_id },
             include: [
                 {
                     model: Producto,
@@ -224,19 +224,23 @@ export class producto_inventarioRepository {
     }
     // Método para eliminar un lote de un producto en un inventario
     async deleteLot(sucursal_id, codigo_barras, lote) {
+        const loteNorm = String(lote ?? "").trim();
+
         const lot = await this.model.findOne({
-            where: { sucursal_id, codigo_barras, lote, is_active: true }
+            where: { sucursal_id, codigo_barras, lote: loteNorm }
         });
 
-        if (!lot) throw new Error('Lote no encontrado');
-        if (lot.existencias > 0) throw new Error('No se puede eliminar un lote con existencias');
+        if (!lot) return { ok: false, reason: "NOT_FOUND" };
 
-        // Marcar como inactivo
+        if (lot.is_active === false) return { ok: true, alreadyInactive: true, lot };
+
+        if (Number(lot.existencias || 0) > 0) return { ok: false, reason: "HAS_STOCK" };
+
         lot.is_active = false;
         await lot.save();
 
-        return lot;
-    }
+        return { ok: true, deactivated: true, lot };
+        }
 
     async update(producto_inventario_id, productData) {
         const transaction = await this.model.sequelize.transaction();
