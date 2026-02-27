@@ -24,8 +24,14 @@ export const getEntradasBySucursal = async (req, res) => {
 
     try {
         const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id);
-        const entradasFormateadas = entradas.map(entrada => ({...entrada,
-            fecha_movimiento: dayjs(entrada.fecha_movimiento).tz('America/Mexico_City').format('YYYY-MM-DD HH:mm:ss'),
+
+        const entradasFormateadas = entradas.map(entrada => ({
+            ...entrada,
+            fecha_movimiento: dayjs(entrada.fecha_movimiento)
+                .tz('America/Mexico_City')
+                .format('YYYY-MM-DD HH:mm:ss'),
+            codigo_barras: entrada['Producto_Inventario.codigo_barras'] || 'Eliminado',
+            sucursal_id: entrada['Producto_Inventario.sucursal_id'] || 'Eliminado',
         }));
 
         res.status(200).json(entradasFormateadas);

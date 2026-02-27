@@ -74,7 +74,13 @@ export class MovimientoInventarioRepository {
             include: [
             {
                 model: this.tipoMovimientoModel,
-                where: { descripcion: 'Entrada' , descripcion: 'Anulación de venta' },
+                where: {
+                    descripcion: [
+                        'Entrada',
+                        'Anulación de venta',
+                        'Actualizacion manual del inventario'
+                    ]
+                },
                 attributes: [],
             },
             {
