@@ -278,7 +278,6 @@ export class producto_inventarioRepository {
             where: {sucursal_id, codigo_barras, lote}
         });
         if(!find) return null;
-        //console.log('Producto encontrado: ', find.toJSON());
         return find;
     }
 

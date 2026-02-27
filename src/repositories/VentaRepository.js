@@ -163,6 +163,21 @@ export class VentaRepository {
             return { error: 'Usuario no encontrado' };
         }
 
+        if (!usuario.turno) {
+            return { error: 'El usuario no tiene turno asignado' };
+        }
+
+        const turnoNorm = String(usuario.turno || '').trim().toLowerCase();
+
+        const turnoContrario =
+            turnoNorm === 'matutino' ? 'Vespertino'
+            : turnoNorm === 'vespertino' ? 'Matutino'
+            : null;
+
+            if (!turnoContrario) {
+            return { error: `Turno inválido: ${usuario.turno}` };
+        }
+
         // 1) Ventas del usuario en la sucursal y rango
         const ventasUsuario = await this.ventaModel.findAll({
             where: {
@@ -209,6 +224,24 @@ export class VentaRepository {
             },
             raw: true
         });
+        const [totalTurnoContrarioRow] = await this.ventaModel.findAll({
+            attributes: [[fn('COALESCE', fn('SUM', col('total')), 0), 'total_turno_contrario']],
+            include: [{
+                model: Usuario,
+                attributes: [],
+                where: {
+                turno: turnoContrario,
+                rol: 'trabajador'
+                }
+            }],
+            where: {
+                sucursal_id,
+                anulada: false,
+                fecha_venta: { [Op.gte]: start, [Op.lt]: end }
+            },
+            raw: true
+        });
+        const total_turno_contrario = Number(totalTurnoContrarioRow?.total_turno_contrario ?? 0);
         const total_turno = Number(totalTurnoRow?.total_turno ?? 0);
         const total_otros_mismo_turno = Math.max(total_turno - total_usuario, 0);
 
@@ -338,7 +371,9 @@ export class VentaRepository {
             })),
             totales: {
                 total_usuario,
-                total_turno,
+                total_turno: total_turno_contrario,
+                total_turno_propio: total_turno,
+                total_turno_contrario,
                 total_otros_mismo_turno,
                 total_administradores
             }
