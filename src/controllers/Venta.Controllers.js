@@ -121,53 +121,84 @@ export const getVentasByFecha = async (req, res) => {
 
 export const getVentasPorUsuarioYFecha = async (req, res) => {
     const { sucursal_id, usuario_id, fecha, tipo = 'dia' } = req.params;
+    const { fecha_inicio, fecha_fin } = req.query;
 
-    console.log('Petición recibida con params:', { sucursal_id, usuario_id, fecha, tipo });
+    console.log('Petición:', { sucursal_id, usuario_id, fecha, tipo, fecha_inicio, fecha_fin });
 
-    if (!usuario_id || !fecha || !sucursal_id) {
-        console.warn('Falta usuario_id, fecha o sucursal_id');
-        return res.status(400).json({ message: 'Faltan parámetros usuario_id o fecha' });
+    if (!usuario_id || !sucursal_id) {
+        return res.status(400).json({ message: 'Faltan parámetros sucursal_id o usuario_id' });
+    }
+
+    const isRango = Boolean(fecha_inicio && fecha_fin);
+    if (!isRango && !fecha) {
+        return res.status(400).json({ message: 'Falta parámetro fecha' });
     }
 
     try {
-        const venta = await ventaRepository.getCorteCaja(sucursal_id, usuario_id, fecha, tipo);
-        console.log(' Ventas encontradas:', venta.length);
+        const data = await ventaRepository.getCorteCaja(
+        sucursal_id,
+        usuario_id,
+        fecha || fecha_inicio,
+        tipo,
+        isRango ? { fecha_inicio, fecha_fin } : {}
+        );
 
-        if (!venta || venta.length === 0) {
-            console.warn(' No se encontraron ventas para ese usuario y fecha');
-            return res.status(404).json({ message: 'Venta no encontrada' });
+        if (!data) return res.status(404).json({ message: 'No encontrado' });
+        if (data.error) return res.status(400).json(data);
+
+        const nUsuario = Array.isArray(data.ventas_usuario) ? data.ventas_usuario.length : 0;
+        const nAdmin = Array.isArray(data.ventas_administradores) ? data.ventas_administradores.length : 0;
+
+        if (nUsuario === 0 && nAdmin === 0) {
+        return res.status(404).json({ message: 'No se encontraron ventas en el rango' });
         }
 
-        res.json(venta);
+        return res.json(data);
     } catch (error) {
-        console.error('Error al obtener ventas', error);
-        res.status(500).json({ message: 'Error interno del servidor' });
+        console.error('Error al obtener corte', error);
+        return res.status(500).json({ message: 'Error interno del servidor' });
     }
-};
+    };
 
-export const getVentasPorSucursalYFecha = async (req, res) => {
+    export const getVentasPorSucursalYFecha = async (req, res) => {
     const { sucursal_id, fecha, tipo = 'dia' } = req.params;
+    const { fecha_inicio, fecha_fin } = req.query;
 
-    console.log('Petición recibida con params:', { sucursal_id, fecha, tipo });
+    console.log('Petición:', { sucursal_id, fecha, tipo, fecha_inicio, fecha_fin });
 
-    if (!sucursal_id || !fecha) {
-        console.warn('Falta sucursal_id o fecha');
-        return res.status(400).json({ message: 'Faltan parámetros sucursal_id o fecha' });
+    if (!sucursal_id) {
+        return res.status(400).json({ message: 'Falta parámetro sucursal_id' });
+    }
+
+    const isRango = Boolean(fecha_inicio && fecha_fin);
+    if (!isRango && !fecha) {
+        return res.status(400).json({ message: 'Falta parámetro fecha' });
     }
 
     try {
-        const venta = await ventaRepository.getCorteCajaSucursal(sucursal_id, fecha, tipo);
-        console.log('Ventas encontradas:', venta.length);
+        const data = await ventaRepository.getCorteCajaSucursal(
+        sucursal_id,
+        fecha || fecha_inicio,
+        tipo,
+        isRango ? { fecha_inicio, fecha_fin } : {}
+        );
 
-        if (!venta || venta.length === 0) {
-            console.warn('No se encontraron ventas para ese usuario y fecha');
-            return res.status(404).json({ message: 'Venta no encontrada' });
+        if (!data) return res.status(404).json({ message: 'No encontrado' });
+
+        const nVentas = Array.isArray(data.ventas) ? data.ventas.length : 0;
+        if (nVentas === 0) {
+        return res.status(404).json({ message: 'No se encontraron ventas en el rango' });
         }
 
-        res.status(200).json(venta);
+        return res.status(200).json(data);
     } catch (error) {
-        console.error('Error al obtener ventas', error);
-        res.status(500).json({ message: 'Error interno del servidor' });
+    console.error('Error al obtener corte sucursal', {
+        message: error?.message,
+        name: error?.name,
+        parent: error?.parent?.message,
+        sql: error?.sql,
+    });
+    return res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
