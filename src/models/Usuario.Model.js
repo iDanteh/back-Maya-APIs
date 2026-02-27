@@ -33,7 +33,7 @@ Usuario.init({
     },
     turno: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        allowNull: true,
     },
     fecha_ingreso: {
         type: DataTypes.DATE,
@@ -48,6 +48,10 @@ Usuario.init({
         type: DataTypes.STRING(5),
         allowNull: false,
         unique: true,
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
     },
     sucursal_id: {
         type: DataTypes.STRING(10),
@@ -66,7 +70,10 @@ Usuario.init({
     freezeTableName: true,
     tableName: 'usuario',
     timestamps: false,
-    fecha_ingreso: 'fecha_ingreso', // Para evitar error de que no existe la columna
+    fecha_ingreso: 'fecha_ingreso',
+    defaultScope: {
+        where: { is_active: true }
+    }
 });
 
 Usuario.belongsTo(Sucursal, {

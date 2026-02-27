@@ -5,7 +5,7 @@ export class ProductoRepository {
     }
 
     async findAll() {
-        return await this.model.findAll();
+        return this.model.scope(null).findAll();
     }
 
     async findById(codigo_barras) {
@@ -18,11 +18,24 @@ export class ProductoRepository {
 
     async update(codigo_barras, productData) {
         try {
-            const product = await this.model.findByPk(codigo_barras);
+            const product = await this.model.scope('withInactive').findByPk(codigo_barras);
             if (!product) return null;
-            if (product.precio_maximo !== productData.precio_maximo) {
+
+            if (Object.prototype.hasOwnProperty.call(productData, 'precio_maximo')) {
+            const sanitizeMoney = (v) =>
+                v == null ? null : Number(String(v).replace(/[^\d.-]/g, ''));
+
+            const oldNum = sanitizeMoney(product.precio_maximo);
+            const newNum = sanitizeMoney(productData.precio_maximo);
+
+            if (Number.isFinite(oldNum) && Number.isFinite(newNum)) {
+                if (oldNum !== newNum) {
                 productData.precio_max_anterior = product.precio_maximo;
                 productData.fecha_updt_precio = new Date();
+                } else {
+                delete productData.precio_maximo;
+                }
+            }
             }
 
             return await product.update(productData);
@@ -33,9 +46,21 @@ export class ProductoRepository {
     }
 
     async delete(codigo_barras) {
-        const product = await this.model.findByPk(codigo_barras);
+        const product = await this.model.scope('withInactive').findByPk(codigo_barras);
         if (!product) return false;
-        await product.destroy();
+
+        if (product.is_active === false) {
+        return true;
+        }
+
+        await product.update({ is_active: false });
+        return true;
+    }
+
+    async restore(codigo_barras) {
+        const product = await this.model.scope('withInactive').findByPk(codigo_barras);
+        if (!product) return false;
+        await product.update({ is_active: true });
         return true;
     }
 }

@@ -60,6 +60,10 @@ Producto_Inventario.init({
         type: DataTypes.DATE,
         allowNull: false,
     },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+    },
 },
 {
     sequelize,

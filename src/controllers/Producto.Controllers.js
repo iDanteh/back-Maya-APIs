@@ -89,3 +89,19 @@ export const deleteProduct = async (req, res) => {
         });
     }
 };
+
+export const restoreProduct = async (req, res) => {
+    try {
+        const success = await productoRepo.restore(req.params.codigo_barras);
+        if (!success) {
+        res.status(404).json({ message: 'Producto no encontrado' });
+        return;
+        }
+        res.json({ message: 'Producto reactivado correctamente' });
+    } catch (error) {
+        res.status(500).json({
+        message: 'Hubo un error al reactivar el producto',
+        error: error?.message || error
+        });
+    }
+};

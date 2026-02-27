@@ -14,7 +14,7 @@ export const getSucursales = async (req, res) => {
 
 export const getSucursalById = async (req, res) => {
     try {
-        const sucursal = await Sucursal.findByPk(req.req.sucursal_id);
+        const sucursal = await Sucursal.findByPk(req.params.sucursal_id);
 
         if (!sucursal) {
             res.status(404).json({ error: 'Sucursal no encontrado' });
@@ -74,19 +74,22 @@ export const registerSucursal = async (req, res) => {
 
 export const updateSucursal = async (req, res) => {
     try {
-        const sucursal = await Sucursal.findByPk(req.req.sucursal_id);
-        if(!sucursal){
-            return res.status(404).json({error: 'Sucursal no encontrado'});
+        const sucursal = await Sucursal.findByPk(req.params.sucursal_id);
+        if (!sucursal) {
+            return res.status(404).json({ error: 'Sucursal no encontrado' });
         }
 
-        const {nombre, direccion, contraseña_sucursal} = req.body;
+        const { nombre, direccion, contraseña_sucursal } = req.body;
+
         sucursal.nombre = nombre;
         sucursal.direccion = direccion;
         sucursal.contraseña_sucursal = contraseña_sucursal;
-        await Sucursal.save();
-        res.status(200).json({message: 'Sucursal actualizado'});
+
+        await sucursal.save();
+
+        res.status(200).json({ message: 'Sucursal actualizada' });
     } catch (error) {
-        res.status(500).json({ error: 'Error al actualizar el Sucursal' });
+        res.status(500).json({ error: 'Error al actualizar la sucursal' });
     }
 };
 

@@ -5,8 +5,21 @@ import Inventario from '../models/Inventario.Model.js'
 import { VentaRepository } from '../repositories/VentaRepository.js';
 import MovimientoInventario from '../models/Movimiento_Inventario.Model.js';
 import Producto from '../models/Producto.Model.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const ventaRepository = new VentaRepository(Venta, Detalle_Venta, Producto_Inventario, Inventario, MovimientoInventario);
+
+function buildVentaId(sucursal_id) {
+    const suc = String(sucursal_id).slice(0, 3).toUpperCase();
+    const ts = dayjs().format("YYMMDDHHmmss");
+    const rnd = Math.floor(Math.random() * 100).toString().padStart(2, "0");
+    return `V${suc}${ts}${rnd}`;
+}
 
 export const createVenta = async (req, res) => {
     try {
@@ -22,13 +35,14 @@ export const createVenta = async (req, res) => {
             return res.status(400).json({ error: 'Todos los productos deben especificar un lote' });
         }
 
+        const rnd = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
         const ventaData = {
-            venta_id: `V${sucursal_id}-${Date.now()}`,
+            venta_id: buildVentaId(sucursal_id),
             sucursal_id,
             usuario_id,
             total,
             total_recibido: total_recibido || total,
-            numero_factura: `FAC-${sucursal_id}-${Date.now()}-${usuario_id}`,
+            numero_factura: `FAC-${sucursal_id}-${Date.now()}-${usuario_id}-${rnd}`,
             fecha_venta: new Date()
         };
 
@@ -105,84 +119,117 @@ export const getVentasByFecha = async (req, res) => {
     }
 };
 
-export const anularVenta = async (req, res) => {
+export const getVentasPorUsuarioYFecha = async (req, res) => {
+    const { sucursal_id, usuario_id, fecha, tipo = 'dia' } = req.params;
+    const { fecha_inicio, fecha_fin } = req.query;
+
+    console.log('Petición:', { sucursal_id, usuario_id, fecha, tipo, fecha_inicio, fecha_fin });
+
+    if (!usuario_id || !sucursal_id) {
+        return res.status(400).json({ message: 'Faltan parámetros sucursal_id o usuario_id' });
+    }
+
+    const isRango = Boolean(fecha_inicio && fecha_fin);
+    if (!isRango && !fecha) {
+        return res.status(400).json({ message: 'Falta parámetro fecha' });
+    }
+
+    try {
+        const data = await ventaRepository.getCorteCaja(
+        sucursal_id,
+        usuario_id,
+        fecha || fecha_inicio,
+        tipo,
+        isRango ? { fecha_inicio, fecha_fin } : {}
+        );
+
+        if (!data) return res.status(404).json({ message: 'No encontrado' });
+        if (data.error) return res.status(400).json(data);
+
+        const nUsuario = Array.isArray(data.ventas_usuario) ? data.ventas_usuario.length : 0;
+        const nAdmin = Array.isArray(data.ventas_administradores) ? data.ventas_administradores.length : 0;
+
+        if (nUsuario === 0 && nAdmin === 0) {
+        return res.status(404).json({ message: 'No se encontraron ventas en el rango' });
+        }
+
+        return res.json(data);
+    } catch (error) {
+        console.error('Error al obtener corte', error);
+        return res.status(500).json({ message: 'Error interno del servidor' });
+    }
+    };
+
+    export const getVentasPorSucursalYFecha = async (req, res) => {
+    const { sucursal_id, fecha, tipo = 'dia' } = req.params;
+    const { fecha_inicio, fecha_fin } = req.query;
+
+    console.log('Petición:', { sucursal_id, fecha, tipo, fecha_inicio, fecha_fin });
+
+    if (!sucursal_id) {
+        return res.status(400).json({ message: 'Falta parámetro sucursal_id' });
+    }
+
+    const isRango = Boolean(fecha_inicio && fecha_fin);
+    if (!isRango && !fecha) {
+        return res.status(400).json({ message: 'Falta parámetro fecha' });
+    }
+
+    try {
+        const data = await ventaRepository.getCorteCajaSucursal(
+        sucursal_id,
+        fecha || fecha_inicio,
+        tipo,
+        isRango ? { fecha_inicio, fecha_fin } : {}
+        );
+
+        if (!data) return res.status(404).json({ message: 'No encontrado' });
+
+        const nVentas = Array.isArray(data.ventas) ? data.ventas.length : 0;
+        if (nVentas === 0) {
+        return res.status(404).json({ message: 'No se encontraron ventas en el rango' });
+        }
+
+        return res.status(200).json(data);
+    } catch (error) {
+    console.error('Error al obtener corte sucursal', {
+        message: error?.message,
+        name: error?.name,
+        parent: error?.parent?.message,
+        sql: error?.sql,
+    });
+    return res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
+export const cancelarVenta = async (req, res) => {
     try {
         const { venta_id } = req.params;
-        
+
         if (!venta_id) {
-            return res.status(400).json({ error: 'Se requiere el ID de la venta' });
+        return res.status(400).json({ error: 'Se requiere venta_id' });
         }
 
-        // Anular la venta y reintegrar existencias
-        const resultado = await ventaRepository.anularVenta(venta_id);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Venta anulada exitosamente',
-            data: resultado
+        const resultado = await ventaRepository.cancelarVenta(venta_id);
+
+        return res.status(200).json({
+        success: true,
+        message: 'Venta cancelada exitosamente',
+        data: resultado,
         });
-        
     } catch (error) {
-        console.error('Error en anularVenta:', error);
-        
-        const statusCode = error.message.includes('no encontrada') ? 404 : 
-                          error.message.includes('ya está anulada') ? 400 : 500;
-        
-        res.status(statusCode).json({ 
-            error: 'Error al anular la venta',
-            details: error.message 
+        const msg = error?.message || 'Error interno';
+
+        const status =
+        msg.includes('no encontrada') ? 404 :
+        msg.includes('ya está anulada') ? 400 :
+        msg.includes('no tiene detalles') ? 400 :
+        500;
+
+        return res.status(status).json({
+        success: false,
+        error: 'Error al cancelar la venta',
+        details: msg,
         });
-    }
-};
-
-export const getVentasPorUsuarioYFecha = async (req, res) => {
-    const { usuario_id, fecha, tipo = 'dia' } = req.params;
-
-    console.log('🔍 Petición recibida con params:', { usuario_id, fecha, tipo });
-
-    if (!usuario_id || !fecha) {
-        console.warn('⚠️ Falta usuario_id o fecha');
-        return res.status(400).json({ message: 'Faltan parámetros usuario_id o fecha' });
-    }
-
-    try {
-        const venta = await ventaRepository.getCorteCaja(usuario_id, fecha, tipo);
-        console.log('📦 Ventas encontradas:', venta.length);
-
-        if (!venta || venta.length === 0) {
-            console.warn('❌ No se encontraron ventas para ese usuario y fecha');
-            return res.status(404).json({ message: 'Venta no encontrada' });
-        }
-
-        res.json(venta);
-    } catch (error) {
-        console.error('🔥 Error al obtener ventas', error);
-        res.status(500).json({ message: 'Error interno del servidor' });
-    }
-};
-
-export const getVentasPorSucursalYFecha = async (req, res) => {
-    const { sucursal_id, fecha, tipo = 'dia' } = req.params;
-
-    console.log('🔍 Petición recibida con params:', { sucursal_id, fecha, tipo });
-
-    if (!sucursal_id || !fecha) {
-        console.warn('⚠️ Falta sucursal_id o fecha');
-        return res.status(400).json({ message: 'Faltan parámetros sucursal_id o fecha' });
-    }
-
-    try {
-        const venta = await ventaRepository.getCorteCajaSucursal(sucursal_id, fecha, tipo);
-        console.log('📦 Ventas encontradas:', venta.length);
-
-        if (!venta || venta.length === 0) {
-            console.warn('❌ No se encontraron ventas para ese usuario y fecha');
-            return res.status(404).json({ message: 'Venta no encontrada' });
-        }
-
-        res.json(venta);
-    } catch (error) {
-        console.error('🔥 Error al obtener ventas', error);
-        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };

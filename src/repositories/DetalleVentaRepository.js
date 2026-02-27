@@ -2,6 +2,8 @@ import Venta from '../models/Venta.Model.js';
 import Producto from '../models/Producto.Model.js';
 import Usuario from '../models/Usuario.Model.js';
 import Sucursal from '../models/Sucursal.Model.js';
+import Categoria from '../models/Categoria.Model.js';
+import Producto_Inventario from '../models/Producto_Inventario.Model.js';
 import { where } from 'sequelize';
 
 export class detalle_VentaRepository {
@@ -34,15 +36,22 @@ export class detalle_VentaRepository {
                         exclude: [
                             'precio_minimo',
                             'precio_maximo',
-                            'categoria_id',
                             'proveedor_id',
                             'presentacion',
                             'sustancia_activa'
                         ]
-                    }
+                    },
+                    include: [
+                        {
+                            model: Categoria
+                        }
+                    ]
                 },
                 {
                     model: Usuario
+                },
+                {
+                    model: Producto_Inventario,
                 }
             ]
         })

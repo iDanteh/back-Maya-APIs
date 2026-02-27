@@ -1,6 +1,7 @@
 import Producto_Inventario from "../models/Producto_Inventario.Model.js";
 import { producto_inventarioRepository } from '../repositories/Producto_InventarioRepository.js'
 import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
+import Producto from "../models/Producto.Model.js";
 import Tipo_Movimiento from '../models/Tipo_Movimiento.Model.js';
 import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js'
 
@@ -20,7 +21,37 @@ export const getProductsByInventory = async (req, res) => {
     try {
         const { sucursal_id } = req.params;
         const productos = await repoProductoInventario.findByInventoryId(sucursal_id);
-        res.json(productos);
+
+        const productosSinStock = productos.filter(producto => producto.existencias === 0);
+
+        await Promise.all(productosSinStock.map(async (producto) => {
+            const r = await repoProductoInventario.deleteLot(
+                sucursal_id,
+                producto.codigo_barras,
+                producto.lote
+            );
+
+            if (r?.ok && r?.deactivated) {
+                console.log("Lote inactivado:", producto.lote, "por existencias 0");
+            }
+        }));
+
+        const productosConYSinStock = productos.filter(producto => producto.existencias >= 0);
+
+        res.json(productosConYSinStock);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getFaltantesProductsByInventory = async (req, res) => {
+    try {
+        const { sucursal_id } = req.params;
+        const productos = await repoProductoInventario.findFaltantesByInventoryId(sucursal_id);
+
+        const productosSinStock = productos.filter(producto => producto.existencias === 0 || producto.existencias === null || producto.existencias <= 5);
+
+        res.json(productosSinStock);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -29,15 +60,30 @@ export const getProductsByInventory = async (req, res) => {
 export const searchProduct = async (req, res) => {
     try {
         const { sucursal_id, codigo_barras } = req.params;
-        const producto = await repoProductoInventario.findByBarcodeInInventory(sucursal_id, codigo_barras);
-        
+
+        const producto = await Producto.scope("withInactive").findByPk(codigo_barras);
+
         if (!producto) {
-            return res.status(404).json({ message: 'Producto no encontrado en este inventario' });
+        return res.status(404).json({
+            code: "PRODUCTO_NO_EN_SERVIDOR",
+            message: "El código de barras no está dado de alta en el servidor (catálogo de productos).",
+        });
         }
-        
-        res.json(producto);
+
+        const rows = await repoProductoInventario.findByBarcodeInInventory(
+        sucursal_id,
+        codigo_barras
+        );
+
+        const lotsWithStock = (rows || []).filter(r => Number(r.existencias || 0) > 0);
+
+        return res.status(200).json(lotsWithStock);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error(error);
+        return res.status(500).json({
+        code: "INTERNAL_ERROR",
+        message: "Error interno al consultar el producto.",
+        });
     }
 };
 
@@ -63,7 +109,7 @@ export const addMultipleProductsToInventory = async (req, res) => {
     try {
 
         const { sucursal_id } = req.params;
-        const productsData = req.body.productos; // Accede correctamente a los productos
+        const productsData = req.body.productos;
 
         if (!Array.isArray(productsData)) {
             return res.status(400).json({ error: "El campo 'productos' debe ser un array." });
@@ -96,7 +142,6 @@ export const deleteLot = async (req, res) => {
         const result = await repoProductoInventario.deleteLot(sucursal_id, codigo_barras, lote);
         res.json({ message: 'Lote eliminado correctamente' });
     } catch (error) {
-        // Mejoraría el manejo de diferentes tipos de errores
         if (error.message.includes('No se puede eliminar')) {
             return res.status(400).json({ error: error.message });
         }

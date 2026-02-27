@@ -1,29 +1,29 @@
 import { Router } from "express";
 import { getVenta, getVentasByFecha, getVentasBySucursal,
-    createVenta, anularVenta, getVentasPorUsuarioYFecha,
-    getVentasPorSucursalYFecha
+    createVenta, getVentasPorUsuarioYFecha,
+    getVentasPorSucursalYFecha, cancelarVenta
 } from "../controllers/Venta.Controllers.js";
+import { verifyToken } from '../middlewares/auth.js';
 
 const router = Router();
 
 
 // Crear una nueva venta
-router.post('/api/v1/ventas', createVenta);
+router.post('/api/v1/ventas',  createVenta);
 
 // Obtener una venta específica
 router.get('/api/v1/ventas/:venta_id', getVenta);
 
 // Obtener ventas por sucursal
-router.get('/api/v1/ventas/:sucursal_id/sucursal', getVentasBySucursal);
-
-// Anular una venta
-router.put('/api/v1/ventas/:venta_id/anular', anularVenta);
+router.get('/api/v1/ventas/:sucursal_id/sucursal',  getVentasBySucursal);
 
 // Obtener ventas por rango de fechas (opcionalmente filtrado por sucursal)
-router.get('/api/v1/ventas', getVentasByFecha);
+router.get('/api/v1/ventas',  getVentasByFecha);
 
-router.get('/api/v1/ventas/corte/:usuario_id/:fecha/:tipo?', getVentasPorUsuarioYFecha);
+router.get('/api/v1/ventas/cortePersonal/:sucursal_id/:usuario_id/:fecha/:tipo?',  getVentasPorUsuarioYFecha);
 
-router.get('/api/v1/ventas/corte/sucursal/:sucursal_id/:fecha/:tipo?', getVentasPorSucursalYFecha);
+router.get('/api/v1/ventas/corteSucursal/sucursal/:sucursal_id/:fecha/:tipo?', getVentasPorSucursalYFecha);
+
+router.put('/api/v1/ventas/:venta_id/cancelar', cancelarVenta);
 
 export default router;
