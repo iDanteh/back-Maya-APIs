@@ -56,6 +56,11 @@ export class UsuarioRepository {
             }
         });
     }
+    async findByUsuario(usuario) {
+    return await this.Usuario.findOne({
+        where: { usuario }
+    });
+}
 
     async searchByName(name) {
         if (!name || name.trim() === '') {
