@@ -14,53 +14,78 @@ dayjs.extend(timezone);
 
 const ventaRepository = new VentaRepository(Venta, Detalle_Venta, Producto_Inventario, Inventario, MovimientoInventario);
 
-function buildVentaId(sucursal_id) {
+function buildVentaIdClientStyle(sucursal_id, fecha = new Date()) {
     const suc = String(sucursal_id).slice(0, 3).toUpperCase();
-    const ts = dayjs().format("YYMMDDHHmmss");
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const yy = String(fecha.getFullYear()).slice(-2);
+    const MM = pad2(fecha.getMonth() + 1);
+    const dd = pad2(fecha.getDate());
+    const HH = pad2(fecha.getHours());
+    const mm = pad2(fecha.getMinutes());
+    const ss = pad2(fecha.getSeconds());
+    const ts = `${yy}${MM}${dd}${HH}${mm}${ss}`;
     const rnd = Math.floor(Math.random() * 100).toString().padStart(2, "0");
     return `V${suc}${ts}${rnd}`;
 }
 
 export const createVenta = async (req, res) => {
     try {
-        const { sucursal_id, usuario_id, total, total_recibido, detalles } = req.body;
-        
-        // Validación mejorada
+        const {
+        venta_id,
+        numero_factura,
+        fecha_venta,
+        sucursal_id,
+        usuario_id,
+        total,
+        total_recibido,
+        detalles,
+        } = req.body;
+
+        if (!venta_id || !numero_factura) {
+        return res.status(400).json({
+            error: "Faltan IDs generados por el cliente",
+            details: "Se requiere venta_id y numero_factura",
+        });
+        }
+
+        if (!fecha_venta) {
+        return res.status(400).json({
+            error: "Falta fecha_venta generada por el cliente",
+        });
+        }
+
         if (!detalles || !Array.isArray(detalles) || detalles.length === 0) {
-            return res.status(400).json({ error: 'Debe especificar al menos un producto con lote' });
+        return res.status(400).json({ error: "Debe especificar al menos un producto con lote" });
         }
 
-        // Verificar que todos los detalles tengan lote
         if (detalles.some(d => !d.lote)) {
-            return res.status(400).json({ error: 'Todos los productos deben especificar un lote' });
+        return res.status(400).json({ error: "Todos los productos deben especificar un lote" });
         }
 
-        const rnd = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
         const ventaData = {
-            venta_id: buildVentaId(sucursal_id),
-            sucursal_id,
-            usuario_id,
-            total,
-            total_recibido: total_recibido || total,
-            numero_factura: `FAC-${sucursal_id}-${Date.now()}-${usuario_id}-${rnd}`,
-            fecha_venta: new Date()
+        venta_id,
+        numero_factura,
+        fecha_venta: new Date(fecha_venta),
+        sucursal_id,
+        usuario_id,
+        total,
+        total_recibido: (total_recibido ?? total),
         };
 
         const nuevaVenta = await ventaRepository.createVentaWithDetails(ventaData, detalles);
-        
-        res.status(201).json({
-            message: 'Venta registrada exitosamente',
-            venta: nuevaVenta
+
+        return res.status(201).json({
+        message: "Venta registrada exitosamente",
+        venta: nuevaVenta,
         });
-        
+
     } catch (error) {
-        const statusCode = error.message.includes('No hay suficiente stock') || 
-                          error.message.includes('no encontrado') ? 400 : 500;
-        
-        res.status(statusCode).json({ 
-            error: 'Error al registrar la venta',
-            details: error.message 
-        });
+        const statusCode =
+        (error.message.includes("No hay suficiente stock") || error.message.includes("no encontrado"))
+            ? 400
+            : 500;
+
+        res.status(statusCode).json({ error: "Error al registrar la venta", details: error.message });
     }
 };
 
