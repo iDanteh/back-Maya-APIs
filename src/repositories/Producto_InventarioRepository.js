@@ -76,7 +76,7 @@ export class producto_inventarioRepository {
         const { transaction, logMovimiento = true } = options;
 
         const existingLot = await this.model.findOne({
-            where: { sucursal_id, codigo_barras: productData.codigo_barras, lote: productData.lote },
+            where: { sucursal_id, codigo_barras: productData.codigo_barras, lote: productData.lote,fecha_caducidad: productData.fecha_caducidad },
             transaction
         });
 
@@ -273,9 +273,9 @@ export class producto_inventarioRepository {
     }
 
 
-    async findProductByInventory (sucursal_id, codigo_barras, lote){
+    async findProductByInventory (sucursal_id, codigo_barras, lote,fecha_caducidad){
         const find = await this.model.findOne({
-            where: {sucursal_id, codigo_barras, lote}
+            where: {sucursal_id, codigo_barras, lote,fecha_caducidad}
         });
         if(!find) return null;
         return find;
@@ -289,20 +289,22 @@ export class producto_inventarioRepository {
 
             for (const product of productDataList) {
                 try {
-                    const { codigo_barras, lote, cantidad, motivo, target_sucursal_id } = product;
+                    const { codigo_barras, lote, fecha_caducidad, cantidad, motivo, target_sucursal_id } = product;
 
                     if (!target_sucursal_id || !codigo_barras || !lote || !cantidad) {
                         throw new Error('Faltan datos por producto para realizar la transferencia');
                     }
 
-                    const key = `${codigo_barras}|${lote}`;
+                    //const key = `${codigo_barras}|${lote}`;
+                    const key = `${codigo_barras}|${lote}|${fecha_caducidad}`;
                     let originProduct;
 
                     if (!(key in tempExistencias)) {
                         originProduct = await this.findProductByInventory(
                             source_sucursal_id,
                             codigo_barras,
-                            lote
+                            lote,
+                            fecha_caducidad
                         );
 
                         if (!originProduct) {
@@ -324,7 +326,8 @@ export class producto_inventarioRepository {
                         originProduct = await this.findProductByInventory(
                             source_sucursal_id,
                             codigo_barras,
-                            lote
+                            lote,
+                            fecha_caducidad
                         );
                     }
 
@@ -353,7 +356,8 @@ export class producto_inventarioRepository {
                     let targetProduct = await this.findProductByInventory(
                         target_sucursal_id,
                         codigo_barras,
-                        lote
+                        lote,
+                        fecha_caducidad
                     );
 
                     if (targetProduct) {
