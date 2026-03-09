@@ -126,20 +126,25 @@ export const sucursalAccess = async (req, res) => {
             return res.status(400).json({ error: 'Usuario y clave de acceso son requeridos' });
         }
 
-        let access;
+        //let access;
+        let usuarioEncontrado;
 
         try {
-            access = await usuarioRepo.sucursalAccess(usuario, clave_acceso);
+            usuarioEncontrado = await usuarioRepo.findByUsuario(usuario);
         } catch (dbError) {
             console.error('Error de conexión al servidor:', dbError.message);
             return res.status(503).json({ error: 'Servidor no disponible, intenta más tarde' });
         }
-
-        if (!access) {
-            return res.status(401).json({ error: 'Usuario o clave incorrectos' });
+        if (!usuarioEncontrado) {
+            return res.status(404).json({ error: 'El usuario no existe' });
         }
-
-        res.status(200).json({ message: 'Acceso permitido', access });
+        if (usuarioEncontrado.clave_acceso !== clave_acceso) {
+            return res.status(401).json({ error: 'La contraseña es incorrecta' });
+        }
+        if (!usuarioEncontrado || usuarioEncontrado.clave_acceso !== clave_acceso) {
+            return res.status(401).json({ error: 'Credenciales incorrectas' });
+        }
+        res.status(200).json({ message: 'Acceso permitido', access:usuarioEncontrado });
 
     } catch (error) {
         console.error('Error inesperado en sucursalAccess:', error.message);
