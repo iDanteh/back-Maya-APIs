@@ -19,7 +19,43 @@ export class VentaRepository {
         
         try {
             // 1. Crear la venta principal
-            const nuevaVenta = await this.ventaModel.create(ventaData, { transaction });
+            //const nuevaVenta = await this.ventaModel.create(ventaData, { transaction });
+            let nuevaVenta;
+
+            try {
+                nuevaVenta = await this.ventaModel.create(ventaData, { 
+                    transaction,
+                    ignoreDuplicates: true
+                });
+
+                if (!nuevaVenta) {
+                    console.log('⚠️ Venta duplicada detectada, se omite');
+
+                    await transaction.rollback();
+
+                    return {
+                        success: true,
+                        duplicated: true,
+                        message: 'Venta ya registrada'
+                    };
+                }
+
+            } catch (error) {
+
+                if (error.name === 'SequelizeUniqueConstraintError') {
+                    console.log('⚠️ Venta duplicada detectada (catch)');
+
+                    await transaction.rollback();
+
+                    return {
+                        success: true,
+                        duplicated: true,
+                        message: 'Venta ya registrada'
+                    };
+                }
+
+                throw error;
+            }
             
             // 2. Procesar cada detalle de venta
             for (const detalle of detallesVenta) {
