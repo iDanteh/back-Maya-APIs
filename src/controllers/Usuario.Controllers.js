@@ -1,12 +1,14 @@
 import Usuario from '../models/Usuario.Model.js';
 import Sucursal from '../models/Sucursal.Model.js';
-import { UsuarioRepository } from '../repositories/UsuarioRepository.js'
+import { UsuarioRepository } from '../repositories/UsuarioRepository.js';
+import { getPagination } from '../utils/pagination.js';
 
 const usuarioRepo = new UsuarioRepository(Usuario, Sucursal);
 
 export const getUsuarios = async (req, res) => {
     try {
-        const usuarios = await usuarioRepo.findAll();
+        const { limit, offset } = getPagination(req.query);
+        const usuarios = await usuarioRepo.findAll({ limit, offset });
         res.status(200).json(usuarios);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -56,8 +58,6 @@ export const registerUser = async (req, res) => {
         const userData = { ...req.body, rol };
         userData.rol = rol;
 
-        console.log('Datos recibidos:', userData);
-
         const emailExist = await usuarioRepo.findByEmail(userData.email);
         if (emailExist) {
             return res.status(400).json({ error: 'El email ya existe' });
@@ -76,8 +76,6 @@ export const registerAdmin = async (req, res) => {
         // Para administradores, no requerimos sucursal_id
         const { sucursal_id, ...userData } = req.body;
         userData.rol = rol;
-
-        console.log('Datos recibidos:', userData);
 
         if (!userData.email) {
             return res.status(400).json({ error: 'El campo email es requerido' });
@@ -141,10 +139,9 @@ export const sucursalAccess = async (req, res) => {
         if (usuarioEncontrado.clave_acceso !== clave_acceso) {
             return res.status(401).json({ error: 'La contraseña es incorrecta' });
         }
-        if (!usuarioEncontrado || usuarioEncontrado.clave_acceso !== clave_acceso) {
-            return res.status(401).json({ error: 'Credenciales incorrectas' });
-        }
-        res.status(200).json({ message: 'Acceso permitido', access:usuarioEncontrado });
+
+        const { clave_acceso: _, ...safeUser } = usuarioEncontrado.get({ plain: true });
+        res.status(200).json({ message: 'Acceso permitido', access: safeUser });
 
     } catch (error) {
         console.error('Error inesperado en sucursalAccess:', error.message);
@@ -153,12 +150,6 @@ export const sucursalAccess = async (req, res) => {
 };
 
 export const logout = (req, res) => {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader) return res.status(400).json({ error: 'No hay token' });
-
-    const token = authHeader.split(' ')[1];
-    invalidateToken(token);
-
     res.status(200).json({ message: 'Sesión cerrada correctamente' });
 };
 

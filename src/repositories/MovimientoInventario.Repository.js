@@ -65,12 +65,19 @@ export class MovimientoInventarioRepository {
         }, options);
     }
 
+    async findAll({ limit, offset } = {}) {
+        const opts = { order: [['fecha_movimiento', 'DESC']] };
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return await this.model.findAll(opts);
+    }
+
     async createBulkMovimientos(movimientosData) {
         return await this.model.bulkCreate(movimientosData);
     }
 
-    async getEntradasBySucursal(sucursal_id) {
-        return await this.model.findAll({
+    async getEntradasBySucursal(sucursal_id, { limit, offset } = {}) {
+        const opts = {
             include: [
             {
                 model: this.tipoMovimientoModel,
@@ -92,11 +99,14 @@ export class MovimientoInventarioRepository {
             ],
             order: [['fecha_movimiento', 'DESC']],
             raw: true,
-        });
+        };
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return await this.model.findAll(opts);
     }
 
-    async getSalidasBySucursal(sucursal_id) {
-        return await this.model.findAll({
+    async getSalidasBySucursal(sucursal_id, { limit, offset } = {}) {
+        const opts = {
             include: [
             {
                 model: this.tipoMovimientoModel,
@@ -112,7 +122,10 @@ export class MovimientoInventarioRepository {
             ],
             order: [['fecha_movimiento', 'DESC']],
             raw: true,
-        });
-        }
+        };
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return await this.model.findAll(opts);
+    }
 
 }

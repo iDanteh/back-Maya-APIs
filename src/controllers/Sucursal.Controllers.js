@@ -67,7 +67,6 @@ export const registerSucursal = async (req, res) => {
 
         return res.status(201).json({ newSucursal, newInventario });
     } catch (error) {
-        console.log('Error al registrar la sucursal:', error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -95,7 +94,7 @@ export const updateSucursal = async (req, res) => {
 
 export const deleteSucursal = async (req, res) => {
     try {
-        const sucursal = await Sucursal.findByPk(req.req.sucursal_id);
+        const sucursal = await Sucursal.findByPk(req.params.sucursal_id);
         if (!sucursal) {
             return res.status(404).json({ error: 'Sucursal no encontrado' });
         }

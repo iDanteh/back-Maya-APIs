@@ -1,6 +1,7 @@
 import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
 import Tipo_Movimiento from '../models/Tipo_Movimiento.Model.js';
 import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js';
+import { getPagination } from '../utils/pagination.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
@@ -12,7 +13,8 @@ const repoMovimientoInventario = new MovimientoInventarioRepository(Movimiento_I
 
 export const getMovimientos = async (req, res) => {
     try {
-        const movimientos = await repoMovimientoInventario.findAll();
+        const { limit, offset } = getPagination(req.query);
+        const movimientos = await repoMovimientoInventario.findAll({ limit, offset });
         res.status(200).json(movimientos);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener los movimientos' });
@@ -23,7 +25,8 @@ export const getEntradasBySucursal = async (req, res) => {
     const { sucursal_id } = req.params;
 
     try {
-        const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id);
+        const { limit, offset } = getPagination(req.query);
+        const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id, { limit, offset });
 
         const entradasFormateadas = entradas.map(entrada => ({
             ...entrada,
@@ -45,7 +48,8 @@ export const getSalidasBySucursal = async (req, res) => {
     const { sucursal_id } = req.params;
 
     try {
-        const salidas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id);
+        const { limit, offset } = getPagination(req.query);
+        const salidas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id, { limit, offset });
 
         const salidasFormateadas = salidas.map(salida => ({
             ...salida,

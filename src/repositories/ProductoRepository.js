@@ -4,8 +4,11 @@ export class ProductoRepository {
         this.model = model;
     }
 
-    async findAll() {
-        return this.model.scope(null).findAll();
+    async findAll({ limit, offset } = {}) {
+        const opts = {};
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return this.model.scope(null).findAll(opts);
     }
 
     async findById(codigo_barras) {

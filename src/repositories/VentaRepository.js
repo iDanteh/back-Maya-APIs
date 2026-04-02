@@ -159,9 +159,11 @@ export class VentaRepository {
         });
     }
 
-    async getVentasBySucursal(sucursal_id) {
-        return await this.ventaModel.findAll({
-            where: { sucursal_id }});
+    async getVentasBySucursal(sucursal_id, { limit, offset } = {}) {
+        const opts = { where: { sucursal_id }, order: [['fecha_venta', 'DESC']] };
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return await this.ventaModel.findAll(opts);
     }
 
     _startOfDay(dateStr) {
@@ -230,7 +232,6 @@ export class VentaRepository {
             range = this._getRange(fecha, tipo);
         }
         const { start, end } = range;
-        console.log('Rango de fechas (semiabierto):', { start, end });
 
         const usuario = await Usuario.findByPk(Number(usuario_id), {
             attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'rol', 'sucursal_id']
@@ -445,7 +446,6 @@ export class VentaRepository {
             range = this._getRange(fecha, tipo);
         }
         const { start, end } = range;
-        console.log('Rango de fechas (semiabierto):', { start, end });
 
         const ventas = await this.ventaModel.findAll({
             where: {

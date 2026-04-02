@@ -1,11 +1,13 @@
 import Doctores from '../models/Doctores.Model.js';
 import { DoctoresRepository } from '../repositories/DoctoresRepository.js';
+import { getPagination } from '../utils/pagination.js';
 
 const doctoresRepo = new DoctoresRepository(Doctores);
 
 export const getDoctors = async (req, res) => {
     try {
-        const doctors = await doctoresRepo.findAllDoctors();
+        const { limit, offset } = getPagination(req.query);
+        const doctors = await doctoresRepo.findAllDoctors({ limit, offset });
         res.status(200).json(doctors);
     } catch (error) {
         res.status(500).json({ error: error.message});
@@ -34,8 +36,6 @@ export const createDoctor = async (req, res) => {
         if (!newDoctor) {
             return res.status(400).json({ error: 'Error al crear el doctor' });
         }
-
-        console.log('Información recibida: ', doctorData);
 
         res.status(201).json(newDoctor);
     } catch (error) {

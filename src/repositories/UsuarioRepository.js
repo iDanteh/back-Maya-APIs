@@ -6,12 +6,11 @@ export class UsuarioRepository {
         this.Sucursal = Sucursal;
     }
 
-    async findAll() {
-        return await this.Usuario.findAll({
-            where: {
-                is_active: true
-            }
-        });
+    async findAll({ limit, offset } = {}) {
+        const opts = { where: { is_active: true } };
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return await this.Usuario.findAll(opts);
     }
 
     async findById(id) {

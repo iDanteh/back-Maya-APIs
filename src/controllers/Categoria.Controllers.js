@@ -1,9 +1,11 @@
 import { Op } from 'sequelize';
 import Categoria from '../models/Categoria.Model.js';
+import { getPagination } from '../utils/pagination.js';
 
 export const getCategorias = async (req, res) => {
     try {
-        const categorias = await Categoria.findAll();
+        const { limit, offset } = getPagination(req.query);
+        const categorias = await Categoria.findAll({ limit, offset });
         res.status(200).json(categorias);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener las categorias' });

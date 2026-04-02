@@ -1,11 +1,13 @@
 import Producto from '../models/Producto.Model.js';
 import { ProductoRepository } from '../repositories/ProductoRepository.js';
+import { getPagination } from '../utils/pagination.js';
 
 const productoRepo = new ProductoRepository(Producto);
 
 export const getProductos = async (req, res) => {
     try {
-        const productos = await productoRepo.findAll();
+        const { limit, offset } = getPagination(req.query);
+        const productos = await productoRepo.findAll({ limit, offset });
         res.json(productos);
     } catch (error) {
         res.status(500).json({

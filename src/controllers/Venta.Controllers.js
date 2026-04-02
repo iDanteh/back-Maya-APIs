@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import Venta from '../models/Venta.Model.js';
 import Detalle_Venta from '../models/Detalle_Venta.Model.js';
 import Producto_Inventario from '../models/Producto_Inventario.Model.js';
@@ -5,6 +6,7 @@ import Inventario from '../models/Inventario.Model.js'
 import { VentaRepository } from '../repositories/VentaRepository.js';
 import MovimientoInventario from '../models/Movimiento_Inventario.Model.js';
 import Producto from '../models/Producto.Model.js';
+import { getPagination } from '../utils/pagination.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
@@ -62,14 +64,25 @@ export const createVenta = async (req, res) => {
         return res.status(400).json({ error: "Todos los productos deben especificar un lote" });
         }
 
+        const totalNum = Number(total);
+        const totalRecibidoNum = Number(total_recibido ?? total);
+
+        if (!Number.isFinite(totalNum) || totalNum <= 0) {
+        return res.status(400).json({ error: "El total de la venta debe ser un número positivo" });
+        }
+
+        if (!Number.isFinite(totalRecibidoNum) || totalRecibidoNum < totalNum) {
+        return res.status(400).json({ error: "El dinero recibido no puede ser menor al total de la venta" });
+        }
+
         const ventaData = {
         venta_id,
         numero_factura,
         fecha_venta: new Date(fecha_venta),
         sucursal_id,
         usuario_id,
-        total,
-        total_recibido: (total_recibido ?? total),
+        total: totalNum,
+        total_recibido: totalRecibidoNum,
         };
 
         const nuevaVenta = await ventaRepository.createVentaWithDetails(ventaData, detalles);
@@ -110,8 +123,9 @@ export const getVenta = async (req, res) => {
 export const getVentasBySucursal = async (req, res) => {
     try {
         const { sucursal_id } = req.params;
-        const ventas = await ventaRepository.getVentasBySucursal(sucursal_id);
-        
+        const { limit, offset } = getPagination(req.query);
+        const ventas = await ventaRepository.getVentasBySucursal(sucursal_id, { limit, offset });
+
         res.json(ventas);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -124,7 +138,7 @@ export const getVentasByFecha = async (req, res) => {
         
         const whereClause = {
             fecha_venta: {
-                [sequelize.Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
+                [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
             }
         };
         
@@ -150,8 +164,6 @@ export const getVentasByFecha = async (req, res) => {
 export const getVentasPorUsuarioYFecha = async (req, res) => {
     const { sucursal_id, usuario_id, fecha, tipo = 'dia' } = req.params;
     const { fecha_inicio, fecha_fin } = req.query;
-
-    console.log('Petición:', { sucursal_id, usuario_id, fecha, tipo, fecha_inicio, fecha_fin });
 
     if (!usuario_id || !sucursal_id) {
         return res.status(400).json({ message: 'Faltan parámetros sucursal_id o usuario_id' });
@@ -191,8 +203,6 @@ export const getVentasPorUsuarioYFecha = async (req, res) => {
     export const getVentasPorSucursalYFecha = async (req, res) => {
     const { sucursal_id, fecha, tipo = 'dia' } = req.params;
     const { fecha_inicio, fecha_fin } = req.query;
-
-    console.log('Petición:', { sucursal_id, fecha, tipo, fecha_inicio, fecha_fin });
 
     if (!sucursal_id) {
         return res.status(400).json({ message: 'Falta parámetro sucursal_id' });
