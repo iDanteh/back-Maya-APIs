@@ -14,8 +14,8 @@ export class producto_inventarioRepository {
 
     // Nuevo método para buscar productos por sucursal_id
     // Actualización para obtener también la información de los productos
-    async findByInventoryId(sucursal_id) {
-        return await this.model.findAll({
+    async findByInventoryId(sucursal_id, { limit = 200, offset = 0 } = {}) {
+        const { count, rows } = await this.model.findAndCountAll({
             where: { sucursal_id },
             include: [
                 {
@@ -29,8 +29,12 @@ export class producto_inventarioRepository {
                         }
                     ]
                 }
-            ]
+            ],
+            limit,
+            offset,
+            distinct: true,
         });
+        return { count, rows };
     }
 
     async findFaltantesByInventoryId(sucursal_id) {
@@ -288,86 +292,80 @@ export class producto_inventarioRepository {
             const tempExistencias = {};
 
             for (const product of productDataList) {
-                try {
-                    const { codigo_barras, lote, fecha_caducidad, cantidad, motivo, target_sucursal_id } = product;
+                const { codigo_barras, lote, fecha_caducidad, cantidad, motivo, target_sucursal_id } = product;
 
-                    if (!target_sucursal_id || !codigo_barras || !lote || !cantidad) {
-                        throw new Error('Faltan datos por producto para realizar la transferencia');
-                    }
+                if (!target_sucursal_id || !codigo_barras || !lote || !cantidad) {
+                    throw new Error('Faltan datos por producto para realizar la transferencia');
+                }
 
-                    //const key = `${codigo_barras}|${lote}`;
-                    const key = `${codigo_barras}|${lote}|${fecha_caducidad}`;
-                    let originProduct;
+                const key = `${codigo_barras}|${lote}|${fecha_caducidad}`;
+                let originProduct;
 
-                    if (!(key in tempExistencias)) {
-                        originProduct = await this.findProductByInventory(
-                            source_sucursal_id,
-                            codigo_barras,
-                            lote,
-                            fecha_caducidad
-                        );
-
-                        if (!originProduct) {
-                            throw new Error(`Producto con código ${codigo_barras} y lote ${lote} no encontrado en la sucursal ${source_sucursal_id}`);
-                        }
-
-                        tempExistencias[key] = originProduct.existencias;
-                    }
-
-                    if (tempExistencias[key] < cantidad) {
-                        throw new Error(`Existencias insuficientes para el producto ${codigo_barras} en la sucursal ${source_sucursal_id}`);
-                    }
-
-                    // Descontar del inventario temporal y actualizar en DB
-                    tempExistencias[key] -= cantidad;
-
-                    // Si es la primera vez que se actualiza este producto, recupera el modelo
-                    if (!originProduct) {
-                        originProduct = await this.findProductByInventory(
-                            source_sucursal_id,
-                            codigo_barras,
-                            lote,
-                            fecha_caducidad
-                        );
-                    }
-
-                    // 1. Descontar existencias del origen
-                    const nuevoStock = tempExistencias[key];
-
-                    await originProduct.update({
-                        existencias: nuevoStock,
-                        is_active: nuevoStock > 0
-                    }, { transaction });
-
-
-                    // 2. Registrar movimiento de salida
-                    await this.movimientoRepo.createMovimiento({
-                        producto_inventario_id: originProduct.producto_inventario_id,
-                        tipo_movimiento_nombre: 'Salida',
-                        cantidad,
-                        referencia: `Lote: ${lote}`,
-                        observaciones: `Reabastecimiento a inventario ${target_sucursal_id}`,
-                        codigo_barras,
-                        lote,
-                        sucursal_id: source_sucursal_id
-                    }, { transaction });
-
-                    // 3. Buscar si ya existe el producto en el inventario destino
-                    let targetProduct = await this.findProductByInventory(
-                        target_sucursal_id,
+                if (!(key in tempExistencias)) {
+                    originProduct = await this.findProductByInventory(
+                        source_sucursal_id,
                         codigo_barras,
                         lote,
                         fecha_caducidad
                     );
 
-                    if (targetProduct) {
-                        // Si ya existe, sumar existencias
-                        await targetProduct.update({
+                    if (!originProduct) {
+                        throw new Error(`Producto con código ${codigo_barras} y lote ${lote} no encontrado en la sucursal ${source_sucursal_id}`);
+                    }
+
+                    tempExistencias[key] = originProduct.existencias;
+                }
+
+                if (tempExistencias[key] < cantidad) {
+                    throw new Error(`Existencias insuficientes para el producto ${codigo_barras} en la sucursal ${source_sucursal_id}`);
+                }
+
+                tempExistencias[key] -= cantidad;
+
+                if (!originProduct) {
+                    originProduct = await this.findProductByInventory(
+                        source_sucursal_id,
+                        codigo_barras,
+                        lote,
+                        fecha_caducidad
+                    );
+                }
+
+                // 1. Descontar existencias del origen
+                const nuevoStock = tempExistencias[key];
+
+                await originProduct.update({
+                    existencias: nuevoStock,
+                    is_active: nuevoStock > 0
+                }, { transaction });
+
+                // 2. Registrar movimiento de salida
+                await this.movimientoRepo.createMovimiento({
+                    producto_inventario_id: originProduct.producto_inventario_id,
+                    tipo_movimiento_nombre: 'Salida',
+                    cantidad,
+                    referencia: `Lote: ${lote}`,
+                    observaciones: `Reabastecimiento a inventario ${target_sucursal_id}`,
+                    codigo_barras,
+                    lote,
+                    sucursal_id: source_sucursal_id
+                }, { transaction });
+
+                // 3. Buscar si ya existe el producto en el inventario destino
+                let targetProduct = await this.findProductByInventory(
+                    target_sucursal_id,
+                    codigo_barras,
+                    lote,
+                    fecha_caducidad
+                );
+
+                if (targetProduct) {
+                    await targetProduct.update({
                         existencias: targetProduct.existencias + cantidad,
                         is_active: true
-                        }, { transaction });
-                    } else {
-                        targetProduct = await this.createProductInInventory(
+                    }, { transaction });
+                } else {
+                    targetProduct = await this.createProductInInventory(
                         target_sucursal_id,
                         {
                             codigo_barras,
@@ -377,31 +375,28 @@ export class producto_inventarioRepository {
                             is_active: true
                         },
                         { transaction, logMovimiento: false }
-                        );
-                    }
-
-                    // 4. Movimiento en destino
-                    await this.movimientoRepo.createMovimiento({
-                        producto_inventario_id: targetProduct.producto_inventario_id,
-                        tipo_movimiento_nombre: 'Entrada',
-                        cantidad,
-                        referencia: `Lote: ${lote}`,
-                        observaciones: `Transferencia desde inventario ${source_sucursal_id}`,
-                        codigo_barras,
-                        lote,
-                        sucursal_id: target_sucursal_id
-                    }, { transaction });
-
-                    transferResults.push({
-                        codigo_barras,
-                        lote,
-                        cantidad_transferida: cantidad,
-                        de: source_sucursal_id,
-                        a: target_sucursal_id
-                    });
-                } catch (error) {
-                    console.warn(`Producto omitido (${product.codigo_barras}): ${error.message}`);
+                    );
                 }
+
+                // 4. Movimiento en destino
+                await this.movimientoRepo.createMovimiento({
+                    producto_inventario_id: targetProduct.producto_inventario_id,
+                    tipo_movimiento_nombre: 'Entrada',
+                    cantidad,
+                    referencia: `Lote: ${lote}`,
+                    observaciones: `Transferencia desde inventario ${source_sucursal_id}`,
+                    codigo_barras,
+                    lote,
+                    sucursal_id: target_sucursal_id
+                }, { transaction });
+
+                transferResults.push({
+                    codigo_barras,
+                    lote,
+                    cantidad_transferida: cantidad,
+                    de: source_sucursal_id,
+                    a: target_sucursal_id
+                });
             }
 
             await transaction.commit();

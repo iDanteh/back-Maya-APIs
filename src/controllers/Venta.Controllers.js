@@ -135,10 +135,21 @@ export const getVentasBySucursal = async (req, res) => {
 export const getVentasByFecha = async (req, res) => {
     try {
         const { sucursal_id, fecha_inicio, fecha_fin } = req.query;
-        
+
+        if (!fecha_inicio || !fecha_fin) {
+            return res.status(400).json({ error: 'Se requieren fecha_inicio y fecha_fin' });
+        }
+
+        const inicio = new Date(fecha_inicio);
+        const fin = new Date(fecha_fin);
+
+        if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) {
+            return res.status(400).json({ error: 'Las fechas proporcionadas no son válidas' });
+        }
+
         const whereClause = {
             fecha_venta: {
-                [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
+                [Op.between]: [inicio, fin]
             }
         };
         
@@ -146,16 +157,26 @@ export const getVentasByFecha = async (req, res) => {
             whereClause.sucursal_id = sucursal_id;
         }
         
-        const ventas = await Venta.findAll({
+        const { limit, offset, page } = getPagination(req.query);
+
+        const { count, rows: ventas } = await Venta.findAndCountAll({
             where: whereClause,
             include: [{
                 model: Detalle_Venta,
                 as: 'detalles'
             }],
-            order: [['fecha_venta', 'DESC']]
+            order: [['fecha_venta', 'DESC']],
+            limit,
+            offset,
+            distinct: true,
         });
-        
-        res.json(ventas);
+
+        res.json({
+            data: ventas,
+            total: count,
+            page,
+            totalPages: Math.ceil(count / limit),
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -175,12 +196,17 @@ export const getVentasPorUsuarioYFecha = async (req, res) => {
     }
 
     try {
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 500, 1), 2000);
+        const offset = (page - 1) * limit;
+
         const data = await ventaRepository.getCorteCaja(
         sucursal_id,
         usuario_id,
         fecha || fecha_inicio,
         tipo,
-        isRango ? { fecha_inicio, fecha_fin } : {}
+        isRango ? { fecha_inicio, fecha_fin } : {},
+        { limit, offset, page }
         );
 
         if (!data) return res.status(404).json({ message: 'No encontrado' });
@@ -214,11 +240,16 @@ export const getVentasPorUsuarioYFecha = async (req, res) => {
     }
 
     try {
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 500, 1), 2000);
+        const offset = (page - 1) * limit;
+
         const data = await ventaRepository.getCorteCajaSucursal(
         sucursal_id,
         fecha || fecha_inicio,
         tipo,
-        isRango ? { fecha_inicio, fecha_fin } : {}
+        isRango ? { fecha_inicio, fecha_fin } : {},
+        { limit, offset, page }
         );
 
         if (!data) return res.status(404).json({ message: 'No encontrado' });

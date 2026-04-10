@@ -27,7 +27,9 @@ export const getProductoInventario = async (req, res) => {
 export const getProductsByInventory = async (req, res) => {
     try {
         const { sucursal_id } = req.params;
-        const productos = await repoProductoInventario.findByInventoryId(sucursal_id);
+        const { limit, offset, page } = getPagination(req.query);
+
+        const { count, rows: productos } = await repoProductoInventario.findByInventoryId(sucursal_id, { limit, offset });
 
         const productosSinStock = productos.filter(producto => producto.existencias === 0);
 
@@ -43,7 +45,12 @@ export const getProductsByInventory = async (req, res) => {
 
         const productosConYSinStock = productos.filter(producto => producto.existencias >= 0);
 
-        res.json(productosConYSinStock);
+        res.json({
+            data: productosConYSinStock,
+            total: count,
+            page,
+            totalPages: Math.ceil(count / limit),
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
