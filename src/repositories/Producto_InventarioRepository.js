@@ -16,7 +16,7 @@ export class producto_inventarioRepository {
     // Actualización para obtener también la información de los productos
     async findByInventoryId(sucursal_id, { limit = 200, offset = 0 } = {}) {
         const { count, rows } = await this.model.findAndCountAll({
-            where: { sucursal_id },
+            where: { sucursal_id, is_active: true, existencias: { [Op.gt]: 0 } },
             include: [
                 {
                     model: Producto,
@@ -147,6 +147,7 @@ export class producto_inventarioRepository {
             const existingProducts = await this.model.findAll({
             where: { [Op.or]: orConditions },
             transaction,
+            lock: transaction.LOCK.UPDATE,
             });
 
             const ymdOf = (v) => {

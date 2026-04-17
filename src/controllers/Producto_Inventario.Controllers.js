@@ -31,22 +31,8 @@ export const getProductsByInventory = async (req, res) => {
 
         const { count, rows: productos } = await repoProductoInventario.findByInventoryId(sucursal_id, { limit, offset });
 
-        const productosSinStock = productos.filter(producto => producto.existencias === 0);
-
-        await Promise.all(productosSinStock.map(async (producto) => {
-            const r = await repoProductoInventario.deleteLot(
-                sucursal_id,
-                producto.codigo_barras,
-                producto.lote
-            );
-
-            // lote inactivado por existencias 0
-        }));
-
-        const productosConYSinStock = productos.filter(producto => producto.existencias >= 0);
-
         res.json({
-            data: productosConYSinStock,
+            data: productos,
             total: count,
             page,
             totalPages: Math.ceil(count / limit),
@@ -139,9 +125,15 @@ export const addMultipleProductsToInventory = async (req, res) => {
         const result = await repoProductoInventario.bulkCreateProductsInInventory(sucursal_id, productsData);
         res.status(201).json({ message: 'Productos procesados correctamente', data: result });
     } catch (error) {
-        res.status(500).json({ 
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({
+                code: 'DUPLICATE_PRODUCTO_INVENTARIO',
+                error: 'Ya existe un registro activo con ese código de barras, lote y fecha de caducidad en esta sucursal.',
+            });
+        }
+        res.status(500).json({
             error: 'Error al agregar múltiples productos al inventario',
-            details: error.message 
+            details: error.message
         });
     }
 };
