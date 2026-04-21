@@ -13,7 +13,7 @@ Producto_Inventario.init({
         primaryKey: true,
     },
     codigo_barras: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(150),
         allowNull: false,
         references:{
             model:Producto,

@@ -11,6 +11,10 @@ const sequelize = new Sequelize(
         port: Number(process.env.DB_PORT) || 3306,
         timezone: '-06:00',
         logging: false,
+        define: {
+            charset: 'utf8mb4',
+            collate: 'utf8mb4_bin',
+        },
     }
 );
 
