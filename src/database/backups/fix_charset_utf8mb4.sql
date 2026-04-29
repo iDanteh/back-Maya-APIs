@@ -7,14 +7,11 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Solo cambia la columna codigo_barras, NO toca el resto de la tabla
-ALTER TABLE producto
-    MODIFY COLUMN codigo_barras VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+ALTER TABLE producto MODIFY COLUMN codigo_barras VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
 
-ALTER TABLE detalle_venta
-    MODIFY COLUMN codigo_barras VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+ALTER TABLE detalle_venta MODIFY COLUMN codigo_barras VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
 
-ALTER TABLE producto_inventario
-    MODIFY COLUMN codigo_barras VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+ALTER TABLE producto_inventario MODIFY COLUMN codigo_barras VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
 
 -- ----------------------------------------------------------------
 -- Tabla promocion: crearla si no existe, o ajustar columna si existe

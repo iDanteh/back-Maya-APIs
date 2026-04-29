@@ -1,7 +1,23 @@
+import { Op } from 'sequelize';
+
 export class ProductoRepository {
 
     constructor(model) {
         this.model = model;
+    }
+
+    async search(q, limit = 20) {
+        const term = `%${q}%`;
+        return this.model.findAll({
+            where: {
+                is_active: true,
+                [Op.or]: [
+                    { codigo_barras: { [Op.like]: term } },
+                    { descripcion:   { [Op.like]: term } },
+                ],
+            },
+            limit,
+        });
     }
 
     async findAll({ limit, offset } = {}) {
