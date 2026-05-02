@@ -25,11 +25,12 @@ export class DoctoresRepository {
         }
     }
 
-    async findAllDoctors() {
+    async findAllDoctors({ limit, offset } = {}) {
         try {
-            return await this.Doctores.findAll({
-                order: [['doctor', 'ASC']]
-            });
+            const opts = { order: [['doctor', 'ASC']] };
+            if (limit !== undefined) opts.limit = limit;
+            if (offset !== undefined) opts.offset = offset;
+            return await this.Doctores.findAll(opts);
         } catch (error) {
             console.log('Error al obtener todos los doctores', error);
             return [];

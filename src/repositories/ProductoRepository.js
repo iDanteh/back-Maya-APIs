@@ -1,11 +1,30 @@
+import { Op } from 'sequelize';
+
 export class ProductoRepository {
 
     constructor(model) {
         this.model = model;
     }
 
-    async findAll() {
-        return this.model.scope(null).findAll();
+    async search(q, limit = 20) {
+        const term = `%${q}%`;
+        return this.model.findAll({
+            where: {
+                is_active: true,
+                [Op.or]: [
+                    { codigo_barras: { [Op.like]: term } },
+                    { descripcion:   { [Op.like]: term } },
+                ],
+            },
+            limit,
+        });
+    }
+
+    async findAll({ limit, offset } = {}) {
+        const opts = {};
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return this.model.scope(null).findAll(opts);
     }
 
     async findById(codigo_barras) {

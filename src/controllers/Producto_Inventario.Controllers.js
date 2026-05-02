@@ -4,13 +4,20 @@ import Movimiento_Inventario from '../models/Movimiento_Inventario.Model.js';
 import Producto from "../models/Producto.Model.js";
 import Tipo_Movimiento from '../models/Tipo_Movimiento.Model.js';
 import { MovimientoInventarioRepository } from '../repositories/MovimientoInventario.Repository.js'
+import { getPagination } from '../utils/pagination.js';
 
 const movimientoRepo = new MovimientoInventarioRepository(Movimiento_Inventario ,Tipo_Movimiento);
 const repoProductoInventario = new producto_inventarioRepository(Producto_Inventario, movimientoRepo);
 
 export const getProductoInventario = async (req, res) => {
     try {
-        const productos_inventario = await Producto_Inventario.findAll();
+        const { sucursal_id } = req.query;
+        if (!sucursal_id) {
+            return res.status(400).json({ error: 'El parámetro sucursal_id es requerido' });
+        }
+        const { limit, offset } = getPagination(req.query);
+        const where = { sucursal_id };
+        const productos_inventario = await Producto_Inventario.findAll({ where, limit, offset });
         res.status(200).json(productos_inventario);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener los productos_inventario'});
@@ -20,25 +27,16 @@ export const getProductoInventario = async (req, res) => {
 export const getProductsByInventory = async (req, res) => {
     try {
         const { sucursal_id } = req.params;
-        const productos = await repoProductoInventario.findByInventoryId(sucursal_id);
+        const { limit, offset, page } = getPagination(req.query);
 
-        const productosSinStock = productos.filter(producto => producto.existencias === 0);
+        const { count, rows: productos } = await repoProductoInventario.findByInventoryId(sucursal_id, { limit, offset });
 
-        await Promise.all(productosSinStock.map(async (producto) => {
-            const r = await repoProductoInventario.deleteLot(
-                sucursal_id,
-                producto.codigo_barras,
-                producto.lote
-            );
-
-            if (r?.ok && r?.deactivated) {
-                console.log("Lote inactivado:", producto.lote, "por existencias 0");
-            }
-        }));
-
-        const productosConYSinStock = productos.filter(producto => producto.existencias >= 0);
-
-        res.json(productosConYSinStock);
+        res.json({
+            data: productos,
+            total: count,
+            page,
+            totalPages: Math.ceil(count / limit),
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -125,12 +123,17 @@ export const addMultipleProductsToInventory = async (req, res) => {
         }
 
         const result = await repoProductoInventario.bulkCreateProductsInInventory(sucursal_id, productsData);
-        console.log(productsData);
         res.status(201).json({ message: 'Productos procesados correctamente', data: result });
     } catch (error) {
-        res.status(500).json({ 
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({
+                code: 'DUPLICATE_PRODUCTO_INVENTARIO',
+                error: 'Ya existe un registro activo con ese código de barras, lote y fecha de caducidad en esta sucursal.',
+            });
+        }
+        res.status(500).json({
             error: 'Error al agregar múltiples productos al inventario',
-            details: error.message 
+            details: error.message
         });
     }
 };
@@ -210,8 +213,6 @@ export const transferirMultiplesProductos = async (req, res) => {
             invalidProducts
         });
     }
-
-    console.log(req.body);
 
     try {
         const result = await repoProductoInventario.transferProductBulk(

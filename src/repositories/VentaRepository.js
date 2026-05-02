@@ -146,7 +146,7 @@ export class VentaRepository {
     }
 
     async getVentaById(venta_id) {
-        return await this.ventaModel.findAll({
+        return await this.ventaModel.findOne({
             where: { venta_id },
             include: [{
                 model: Usuario,
@@ -159,9 +159,11 @@ export class VentaRepository {
         });
     }
 
-    async getVentasBySucursal(sucursal_id) {
-        return await this.ventaModel.findAll({
-            where: { sucursal_id }});
+    async getVentasBySucursal(sucursal_id, { limit, offset } = {}) {
+        const opts = { where: { sucursal_id }, order: [['fecha_venta', 'DESC']] };
+        if (limit !== undefined) opts.limit = limit;
+        if (offset !== undefined) opts.offset = offset;
+        return await this.ventaModel.findAll(opts);
     }
 
     _startOfDay(dateStr) {
@@ -221,7 +223,11 @@ export class VentaRepository {
         return null;
     }
 
-    async getCorteCaja(sucursal_id, usuario_id, fecha, tipo = 'dia', opts = {}) {
+    async getCorteCaja(sucursal_id, usuario_id, fecha, tipo = 'dia', opts = {}, pagOpts = {}) {
+
+        const limit = pagOpts.limit || 500;
+        const offset = pagOpts.offset || 0;
+        const page = pagOpts.page || 1;
 
         let range;
         if (opts.fecha_inicio && opts.fecha_fin) {
@@ -230,7 +236,6 @@ export class VentaRepository {
             range = this._getRange(fecha, tipo);
         }
         const { start, end } = range;
-        console.log('Rango de fechas (semiabierto):', { start, end });
 
         const usuario = await Usuario.findByPk(Number(usuario_id), {
             attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'rol', 'sucursal_id']
@@ -245,7 +250,7 @@ export class VentaRepository {
         const turnoContrario = turnoPropio === 'Matutino' ? 'Vespertino' : 'Matutino';
 
         // 1) Ventas del usuario
-        const ventasUsuario = await this.ventaModel.findAll({
+        const { count: ventasUsuarioTotal, rows: ventasUsuario } = await this.ventaModel.findAndCountAll({
             where: {
             sucursal_id,
             usuario_id: Number(usuario_id),
@@ -256,7 +261,10 @@ export class VentaRepository {
             { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno', 'rol'] },
             { model: Sucursal, attributes: ['sucursal_id'] }
             ],
-            order: [['fecha_venta', 'ASC']]
+            order: [['fecha_venta', 'ASC']],
+            limit,
+            offset,
+            distinct: true,
         });
 
         // 2) Total del usuario
@@ -309,7 +317,7 @@ export class VentaRepository {
         const total_otros_mismo_turno = Math.max(total_turno_propio - total_usuario, 0);
 
         // Ventas otros del mismo turno
-        const ventasMismoTurnoOtros = await this.ventaModel.findAll({
+        const { rows: ventasMismoTurnoOtros } = await this.ventaModel.findAndCountAll({
             where: {
             sucursal_id,
             anulada: false,
@@ -324,7 +332,10 @@ export class VentaRepository {
             },
             { model: Sucursal, attributes: ['sucursal_id'] }
             ],
-            order: [['fecha_venta', 'ASC']]
+            order: [['fecha_venta', 'ASC']],
+            limit,
+            offset,
+            distinct: true,
         });
 
         // agregados mismo turno
@@ -350,7 +361,7 @@ export class VentaRepository {
         });
 
         // Ventas administradores + total + agregados
-        const ventasAdministradores = await this.ventaModel.findAll({
+        const { count: ventasAdminTotal, rows: ventasAdministradores } = await this.ventaModel.findAndCountAll({
             where: {
             sucursal_id,
             anulada: false,
@@ -364,7 +375,10 @@ export class VentaRepository {
             },
             { model: Sucursal, attributes: ['sucursal_id'] }
             ],
-            order: [['fecha_venta', 'ASC']]
+            order: [['fecha_venta', 'ASC']],
+            limit,
+            offset,
+            distinct: true,
         });
 
         const [totalAdministradoresRow] = await this.ventaModel.findAll({
@@ -399,6 +413,8 @@ export class VentaRepository {
 
         return {
             sucursal_id,
+            ventas_page: page,
+            ventas_total_pages: Math.ceil(Math.max(ventasUsuarioTotal, ventasAdminTotal) / limit),
             rango: {
             tipo: (opts.fecha_inicio && opts.fecha_fin) ? 'rango' : tipo,
             inicio: start,
@@ -437,7 +453,7 @@ export class VentaRepository {
         };
     }
 
-    async getCorteCajaSucursal(sucursal_id, fecha, tipo = 'dia', opts = {}) {
+    async getCorteCajaSucursal(sucursal_id, fecha, tipo = 'dia', opts = {}, pagOpts = {}) {
         let range;
         if (opts.fecha_inicio && opts.fecha_fin) {
             range = this._getRangeCustom(opts.fecha_inicio, opts.fecha_fin);
@@ -445,9 +461,11 @@ export class VentaRepository {
             range = this._getRange(fecha, tipo);
         }
         const { start, end } = range;
-        console.log('Rango de fechas (semiabierto):', { start, end });
+        const limit = pagOpts.limit || 500;
+        const offset = pagOpts.offset || 0;
+        const page = pagOpts.page || 1;
 
-        const ventas = await this.ventaModel.findAll({
+        const { count: ventasTotal, rows: ventas } = await this.ventaModel.findAndCountAll({
             where: {
             sucursal_id,
             anulada: false,
@@ -457,7 +475,10 @@ export class VentaRepository {
             { model: Usuario, attributes: ['usuario_id', 'nombre', 'apellido', 'turno'] },
             { model: Sucursal, attributes: ['sucursal_id'] }
             ],
-            order: [['fecha_venta', 'ASC']]
+            order: [['fecha_venta', 'ASC']],
+            limit,
+            offset,
+            distinct: true,
         });
 
         const totalesPorUsuarioRows = await this.ventaModel.findAll({
@@ -502,6 +523,9 @@ export class VentaRepository {
 
         return {
             sucursal_id,
+            ventas_total: ventasTotal,
+            ventas_page: page,
+            ventas_total_pages: Math.ceil(ventasTotal / limit),
             rango: {
             tipo: (opts.fecha_inicio && opts.fecha_fin) ? 'rango' : tipo,
             inicio: start,

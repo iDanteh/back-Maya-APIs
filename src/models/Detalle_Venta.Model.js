@@ -25,7 +25,7 @@ Detalle_Venta.init({
         onUpdate:'CASCADE',
     },
     codigo_barras: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(150),
         allowNull: false,
         references:{
             model:Producto,

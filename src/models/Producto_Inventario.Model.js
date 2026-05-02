@@ -13,9 +13,8 @@ Producto_Inventario.init({
         primaryKey: true,
     },
     codigo_barras: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(150),
         allowNull: false,
-        unique: true,
         references:{
             model:Producto,
             key:'codigo_barras',
@@ -36,7 +35,6 @@ Producto_Inventario.init({
     inventario_id:{
         type: DataTypes.INTEGER,
         allowNull: true,
-        unique:true,
         references:{
             model:Inventario,
             key:'inventario_id',
@@ -63,6 +61,13 @@ Producto_Inventario.init({
     is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
+    },
+    // Columna generada en MySQL: contiene la clave compuesta cuando is_active=1,
+    // NULL cuando is_active=0. El UNIQUE index sobre esta columna previene
+    // duplicados activos sin afectar registros inactivos (historial/auditoría).
+    // Definida en BD con: GENERATED ALWAYS AS (IF(is_active=1, CONCAT_WS(...), NULL)) VIRTUAL
+    uq_llave_activo: {
+        type: DataTypes.VIRTUAL,
     },
 },
 {
