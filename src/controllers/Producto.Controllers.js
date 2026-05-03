@@ -17,8 +17,16 @@ export const buscarProductos = async (req, res) => {
 
 export const getProductos = async (req, res) => {
     try {
-        const { limit, offset } = getPagination(req.query);
-        const productos = await productoRepo.findAll({ limit, offset });
+        const { all } = req.query;
+        let productos;
+
+        if (all === 'true') {
+            productos = await productoRepo.findAll();
+        } else {
+            const { limit, offset } = getPagination(req.query);
+            productos = await productoRepo.findAll({ limit, offset });
+        }
+
         res.json(productos);
     } catch (error) {
         res.status(500).json({
