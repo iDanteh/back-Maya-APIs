@@ -19,7 +19,7 @@ Producto_Inventario.init({
             model:Producto,
             key:'codigo_barras',
         },
-        onDelete:'CASCADE',
+        onDelete:'RESTRICT', // BD: ON DELETE RESTRICT — no borrar producto si tiene inventario
         onUpdate:'CASCADE',
     },
     sucursal_id: {
@@ -83,10 +83,5 @@ Producto_Inventario.belongsTo(Producto, {
     targetKey: 'codigo_barras',
 });
 
-sequelize.sync().then(() => {
-    console.log('Tabla de producto_inventario creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de producto_inventario');
-});
 
 export default Producto_Inventario;

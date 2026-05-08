@@ -90,10 +90,5 @@ Usuario.prototype.getSucursales = async function() {
     }
 };
 
-sequelize.sync().then(() => {
-    console.log('Tabla de usuario creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de usuario');
-});
 
 export default Usuario;

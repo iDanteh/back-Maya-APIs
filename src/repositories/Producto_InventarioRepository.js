@@ -12,6 +12,28 @@ export class producto_inventarioRepository {
         return await this.model.findAll();
     }
 
+    async findChangedSince(sucursal_id, since) {
+        return this.model.findAll({
+            where: {
+                sucursal_id,
+                fecha_ultima_actualizacion: { [Op.gt]: since },
+            },
+            include: [
+                {
+                    model: Producto,
+                    attributes: { exclude: [] },
+                    include: [
+                        {
+                            model: Categoria,
+                            as: 'categoria',
+                            attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto']
+                        }
+                    ]
+                }
+            ],
+        });
+    }
+
     // Nuevo método para buscar productos por sucursal_id
     // Actualización para obtener también la información de los productos
     async findByInventoryId(sucursal_id, { limit = 200, offset = 0 } = {}) {
@@ -242,6 +264,7 @@ export class producto_inventarioRepository {
         if (Number(lot.existencias || 0) > 0) return { ok: false, reason: "HAS_STOCK" };
 
         lot.is_active = false;
+        lot.fecha_ultima_actualizacion = new Date();
         await lot.save();
 
         return { ok: true, deactivated: true, lot };
@@ -267,7 +290,7 @@ export class producto_inventarioRepository {
             sucursal_id: product.sucursal_id ?? null,
             }, { transaction });
 
-            const updated = await product.update(productData, { transaction });
+            const updated = await product.update({ ...productData, fecha_ultima_actualizacion: new Date() }, { transaction });
 
             await transaction.commit();
             return updated;
@@ -337,7 +360,8 @@ export class producto_inventarioRepository {
 
                 await originProduct.update({
                     existencias: nuevoStock,
-                    is_active: nuevoStock > 0
+                    is_active: nuevoStock > 0,
+                    fecha_ultima_actualizacion: new Date()
                 }, { transaction });
 
                 // 2. Registrar movimiento de salida
@@ -363,7 +387,8 @@ export class producto_inventarioRepository {
                 if (targetProduct) {
                     await targetProduct.update({
                         existencias: targetProduct.existencias + cantidad,
-                        is_active: true
+                        is_active: true,
+                        fecha_ultima_actualizacion: new Date()
                     }, { transaction });
                 } else {
                     targetProduct = await this.createProductInInventory(

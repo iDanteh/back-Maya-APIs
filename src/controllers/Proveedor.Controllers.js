@@ -42,10 +42,8 @@ export const getProveedorByName = async (req, res) => {
                     [Op.like]: `%${nombre}%`
                 }
             }
-        })
-        if (!proveedores.length) {
-            return res.json([]);
-        }
+        });
+        return res.json(proveedores);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener el proveedor' });
     }
@@ -90,6 +88,11 @@ export const deleteProveedor = async (req, res) => {
         await proveedor.destroy();
         res.status(200).json({ message: 'Proveedor eliminado' });
     } catch (error) {
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(409).json({
+                error: 'No se puede eliminar el proveedor porque tiene productos asociados. Reasigna o elimina los productos primero.'
+            });
+        }
         res.status(500).json({ error: 'Error al eliminar el proveedor' });
     }
 };

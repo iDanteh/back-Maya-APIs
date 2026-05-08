@@ -27,10 +27,4 @@ Doctores_Cedula.init({
     timestamps: false,
 });
 
-sequelize.sync().then(() => {
-    console.log('Tabla Dcoctores_Cedula creada exitosamente');
-}).catch((error) => {
-    console.error('Error al crear la tabla Doctores_Cedula:', error);
-});
-
 export default Doctores_Cedula;

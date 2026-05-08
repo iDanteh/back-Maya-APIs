@@ -9,6 +9,24 @@ import { getPagination } from '../utils/pagination.js';
 const movimientoRepo = new MovimientoInventarioRepository(Movimiento_Inventario ,Tipo_Movimiento);
 const repoProductoInventario = new producto_inventarioRepository(Producto_Inventario, movimientoRepo);
 
+// Devuelve solo los registros de una sucursal que cambiaron desde ?since=<ISO>
+// El front guarda el syncedAt devuelto y lo usa en la próxima llamada.
+export const getSyncInventario = async (req, res) => {
+    try {
+        const { sucursal_id } = req.params;
+        const since = req.query.since ? new Date(req.query.since) : new Date(0);
+
+        const changes = await repoProductoInventario.findChangedSince(sucursal_id, since);
+
+        res.json({
+            data: changes,
+            syncedAt: new Date().toISOString(),
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const getProductoInventario = async (req, res) => {
     try {
         const { sucursal_id } = req.query;
@@ -26,6 +44,11 @@ export const getProductoInventario = async (req, res) => {
 
 export const getProductsByInventory = async (req, res) => {
     try {
+        // syncedAt capturado ANTES de la query para que el frontend lo use como
+        // punto de corte del próximo delta sync. Si se captura después, cualquier
+        // producto insertado durante la ejecución de la query quedaría fuera del delta.
+        const syncedAt = new Date().toISOString();
+
         const { sucursal_id } = req.params;
         const { limit, offset, page } = getPagination(req.query);
 
@@ -36,6 +59,7 @@ export const getProductsByInventory = async (req, res) => {
             total: count,
             page,
             totalPages: Math.ceil(count / limit),
+            syncedAt,
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -143,14 +167,25 @@ export const deleteLot = async (req, res) => {
     try {
         const { sucursal_id, codigo_barras, lote } = req.params;
         const result = await repoProductoInventario.deleteLot(sucursal_id, codigo_barras, lote);
-        res.json({ message: 'Lote eliminado correctamente' });
+
+        if (result.ok === false) {
+            if (result.reason === 'NOT_FOUND') {
+                return res.status(404).json({ error: `Lote "${lote}" no encontrado en la sucursal ${sucursal_id}.` });
+            }
+            if (result.reason === 'HAS_STOCK') {
+                return res.status(409).json({
+                    error: `No se puede eliminar el lote "${lote}": tiene ${result.lot?.existencias ?? '?'} unidad(es) en existencia. Agota el stock antes de eliminar.`,
+                });
+            }
+            return res.status(400).json({ error: 'No se pudo eliminar el lote.' });
+        }
+
+        if (result.alreadyInactive) {
+            return res.json({ message: 'El lote ya estaba inactivo.', lote: result.lot });
+        }
+
+        res.json({ message: 'Lote desactivado correctamente.', lote: result.lot });
     } catch (error) {
-        if (error.message.includes('No se puede eliminar')) {
-            return res.status(400).json({ error: error.message });
-        }
-        if (error.message.includes('no encontrado')) {
-            return res.status(404).json({ error: error.message });
-        }
         res.status(500).json({ error: error.message });
     }
 };

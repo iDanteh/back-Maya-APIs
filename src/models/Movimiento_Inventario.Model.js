@@ -59,10 +59,5 @@ Movimiento_Inventario.init({
 Movimiento_Inventario.belongsTo(Producto_Inventario, { foreignKey: 'producto_inventario_id' });
 Movimiento_Inventario.belongsTo(Tipo_Movimiento, { foreignKey: 'tipo_movimiento_id' });
 
-sequelize.sync().then(() => {
-    console.log('Tabla de movimiento_inventario creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de movimiento_inventario');
-});
 
 export default Movimiento_Inventario;

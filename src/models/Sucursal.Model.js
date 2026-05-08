@@ -36,10 +36,5 @@ Sucursal.init({
     fecha_creacion: 'fecha_creacion', // Para evitar error de que no existe la columna
 });
 
-sequelize.sync().then(() => {
-    console.log('Tabla de sucursal creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de sucursal');
-});
 
 export default Sucursal;

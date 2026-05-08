@@ -68,6 +68,12 @@ export const deleteCategoria = async (req, res) =>{
         res.status(200).json({message: 'Categoria eliminada'});
     } catch (error) {
         console.log(error);
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(409).json({
+                error: 'No se puede eliminar la categoría porque tiene productos asociados. Reasigna o elimina los productos primero.'
+            });
+        }
+        return res.status(500).json({ error: 'Error al eliminar la categoría' });
     }
 };
 
@@ -87,5 +93,6 @@ export const updateCategoria = async(req, res)=>{
         res.status(200).json({message:'Categoria actualizada'});
     } catch (error) {
         console.log(error);
+        return res.status(500).json({ error: 'Error al actualizar la categoría' });
     }
 };

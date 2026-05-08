@@ -31,7 +31,7 @@ Detalle_Venta.init({
             model:Producto,
             key:'codigo_barras',
         },
-        onDelete:'CASCADE',
+        onDelete:'RESTRICT', // BD: ON DELETE RESTRICT — no borrar producto si tiene ventas
         onUpdate:'CASCADE',
     },
     usuario_id: {
@@ -112,10 +112,5 @@ Detalle_Venta.belongsTo(Producto_Inventario,{
     targetKey: 'producto_inventario_id'
 })
 
-sequelize.sync().then(() => {
-    console.log('Tabla de detalle_venta creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de detalle_venta');
-});
 
 export default Detalle_Venta;

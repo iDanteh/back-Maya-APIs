@@ -1,11 +1,13 @@
 import { Router } from "express";
-import { getProductoInventario, getProductsByInventory, 
+import { getProductoInventario, getProductsByInventory, getSyncInventario,
     searchProduct, deleteLot, transferirProducto, transferirMultiplesProductos,
     addMultipleProductsToInventory, addProductToInventory, updateProductData, getFaltantesProductsByInventory} from "../controllers/Producto_Inventario.Controllers.js";
 import { verifyToken } from '../middlewares/auth.js';
 
 const router = Router();
 router.get('/api/v1/productoInventario', getProductoInventario);
+// La ruta /sync debe definirse ANTES de /:sucursal_id para que Express no la trate como parámetro
+router.get('/api/v1/productoInventario/:sucursal_id/sync', getSyncInventario);
 router.get('/api/v1/productoInventario/:sucursal_id', getProductsByInventory)
 router.get('/api/v1/productoInventario/:sucursal_id/producto/:codigo_barras', searchProduct)
 router.delete('/api/v1/productoInventario/:sucursal_id/producto/:codigo_barras/:lote',  deleteLot)

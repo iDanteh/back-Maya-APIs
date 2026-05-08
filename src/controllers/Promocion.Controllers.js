@@ -50,12 +50,30 @@ export const getPromocionByBarcode = async (req, res) => {
     }
 };
 
+export const getPromocionByGrupo = async (req, res) => {
+    try {
+        const promociones = await Promocion.findAll({
+            where: { grupo_surtido: req.params.grupo_surtido },
+            include: [{
+                model: Producto.unscoped(),
+                as: 'producto',
+                attributes: productoAttributes,
+                required: false,
+            }],
+        });
+        res.status(200).json(promociones);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al obtener el surtido' });
+    }
+};
+
 export const registerPromocion = async (req, res) => {
     try {
         const {
             codigo_barras, nombre, tipo,
             cantidad_minima, precio_promocional,
-            dias_disponible, fecha_inicio, fecha_fin, activo,
+            dias_disponible, fecha_inicio, fecha_fin, activo, grupo_surtido,
         } = req.body;
 
         if (!codigo_barras || !nombre || !cantidad_minima || !precio_promocional) {
@@ -72,12 +90,45 @@ export const registerPromocion = async (req, res) => {
             fecha_inicio: fecha_inicio || null,
             fecha_fin: fecha_fin || null,
             activo: activo !== undefined ? activo : true,
+            grupo_surtido: grupo_surtido || null,
         });
 
         res.status(201).json({ nuevaPromocion });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al registrar la promoción' });
+    }
+};
+
+export const registerPromocionSurtido = async (req, res) => {
+    try {
+        const {
+            codigos_barras, nombre, cantidad_minima, precio_promocional,
+            dias_disponible, fecha_inicio, fecha_fin, activo, grupo_surtido,
+        } = req.body;
+
+        if (!codigos_barras?.length || !nombre || !cantidad_minima || !precio_promocional || !grupo_surtido) {
+            return res.status(400).json({ error: 'Faltan campos requeridos' });
+        }
+
+        const registros = codigos_barras.map(codigo_barras => ({
+            codigo_barras,
+            nombre,
+            tipo: 'precio_multiple',
+            cantidad_minima: parseInt(cantidad_minima),
+            precio_promocional: parseFloat(precio_promocional),
+            dias_disponible: Array.isArray(dias_disponible) ? JSON.stringify(dias_disponible) : '[]',
+            fecha_inicio: fecha_inicio || null,
+            fecha_fin: fecha_fin || null,
+            activo: activo !== undefined ? activo : true,
+            grupo_surtido,
+        }));
+
+        const creadas = await Promocion.bulkCreate(registros);
+        res.status(201).json({ creadas });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al registrar el surtido' });
     }
 };
 
@@ -89,7 +140,7 @@ export const updatePromocion = async (req, res) => {
         const {
             codigo_barras, nombre, tipo,
             cantidad_minima, precio_promocional,
-            dias_disponible, fecha_inicio, fecha_fin, activo,
+            dias_disponible, fecha_inicio, fecha_fin, activo, grupo_surtido,
         } = req.body;
 
         promocion.codigo_barras = codigo_barras;
@@ -101,6 +152,7 @@ export const updatePromocion = async (req, res) => {
         promocion.fecha_inicio = fecha_inicio || null;
         promocion.fecha_fin = fecha_fin || null;
         promocion.activo = activo !== undefined ? activo : true;
+        promocion.grupo_surtido = grupo_surtido || null;
 
         await promocion.save();
         res.status(200).json({ message: 'Promoción actualizada' });

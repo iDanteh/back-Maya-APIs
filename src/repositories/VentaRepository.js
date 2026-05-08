@@ -63,22 +63,24 @@ export class VentaRepository {
                     throw new Error('Cada detalle de venta debe especificar un lote');
                 }
 
-                // Crear el detalle
-                await this.detalleVentaModel.create({
-                    ...detalle,
-                    venta_id: nuevaVenta.venta_id,
-                    usuario_id: ventaData.usuario_id,
-                    sucursal_id: ventaData.sucursal_id
-                }, { transaction });
-                
-                // Actualizar inventario específico por lote
-                await this.actualizarInventarioPorLote(
+                // Primero descontar inventario para obtener el producto_inventario_id
+                // real (con lock) — no el que trajo el cliente desde Dexie (puede ser stale)
+                const realProductoInventarioId = await this.actualizarInventarioPorLote(
                     ventaData.sucursal_id,
                     detalle.codigo_barras,
                     detalle.lote,
                     detalle.cantidad,
                     transaction
                 );
+
+                // Crear el detalle con el ID verificado por la transacción
+                await this.detalleVentaModel.create({
+                    ...detalle,
+                    venta_id: nuevaVenta.venta_id,
+                    usuario_id: ventaData.usuario_id,
+                    sucursal_id: ventaData.sucursal_id,
+                    producto_inventario_id: realProductoInventarioId,
+                }, { transaction });
             }
             
             await transaction.commit();
@@ -130,7 +132,7 @@ export class VentaRepository {
             {
             existencias: productoInventario.existencias - qty,
             fecha_ultima_actualizacion: new Date(),
-            is_active: (productoInventario.existencias - qty) > 0, // opcional
+            is_active: (productoInventario.existencias - qty) > 0,
             },
             { transaction }
         );
@@ -143,6 +145,10 @@ export class VentaRepository {
             referencia: productoInventario.lote,
             observaciones: 'Venta de productos',
         }, { transaction });
+
+        // Devolver el ID real del registro descontado para que createVentaWithDetails
+        // lo guarde en detalle_venta (en lugar del ID stale que vino del cliente)
+        return productoInventario.producto_inventario_id;
     }
 
     async getVentaById(venta_id) {

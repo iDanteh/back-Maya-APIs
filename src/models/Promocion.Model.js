@@ -64,6 +64,11 @@ Promocion.init({
         allowNull: false,
         defaultValue: true,
     },
+    grupo_surtido: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        defaultValue: null,
+    },
 }, {
     sequelize,
     modelName: 'Promocion',

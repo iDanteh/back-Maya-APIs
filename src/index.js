@@ -34,6 +34,12 @@ console.log('Escuchando en el puerto', PORT);
     try {
         await sequelize.authenticate();
         console.log('Conexión exitosa');
+
+        // sync centralizado — crea tablas que no existen, nunca modifica las existentes.
+        // NO usar alter:true en producción: causaría locks en tablas grandes y podría
+        // intentar cambiar constraints que la BD tiene correctamente definidos en el dump.
+        await sequelize.sync({ force: false });
+        console.log('Modelos sincronizados');
     } catch (error) {
         console.error('Error al conectarse a la base de datos:', error);
     }

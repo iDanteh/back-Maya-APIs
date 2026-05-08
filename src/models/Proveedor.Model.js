@@ -35,10 +35,5 @@ Proveedor.init({
     timestamps: false,
 });
 
-sequelize.sync().then(() => {
-    console.log('Tabla de proveedor creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de proveedor');
-});
 
 export default Proveedor;

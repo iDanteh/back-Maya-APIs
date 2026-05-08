@@ -26,10 +26,5 @@ Tipo_Movimiento.init({
     timestamps: false,
 });
 
-sequelize.sync().then(() => {
-    console.log('Tabla de tipo_movimiento creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de tipo_movimiento');
-});
 
 export default Tipo_Movimiento;

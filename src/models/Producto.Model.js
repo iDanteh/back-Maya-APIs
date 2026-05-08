@@ -91,10 +91,5 @@ Producto.init({
 Producto.belongsTo(Categoria, { foreignKey: 'categoria_id' });
 Producto.belongsTo(Proveedor, { foreignKey: 'proveedor_id' });
 
-sequelize.sync().then(() => {
-    console.log('Tabla de producto creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de producto');
-});
 
 export default Producto;

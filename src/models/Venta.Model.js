@@ -82,10 +82,5 @@ Venta.belongsTo(Sucursal, {
     targetKey: 'sucursal_id',
 })
 
-sequelize.sync().then(() => {
-    console.log('Tabla de venta creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de venta');
-});
 
 export default Venta;

@@ -42,10 +42,5 @@ Categoria.init({
 }
 );
 
-sequelize.sync().then(() => {
-    console.log('Tabla de categoria creada exitosamente');
-}).catch(error => {
-    console.log('Error al crear la tabla de categoria');
-});
 
 export default Categoria;
