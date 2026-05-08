@@ -192,6 +192,7 @@ export class producto_inventarioRepository {
             const existingProduct = existingMap.get(k);
 
             if (existingProduct) {
+                const wasInactive = !existingProduct.is_active;
                 existingProduct.existencias = Number(existingProduct.existencias || 0) + inc;
                 existingProduct.fecha_ultima_actualizacion = new Date();
                 existingProduct.is_active = true;
@@ -203,8 +204,8 @@ export class producto_inventarioRepository {
                 tipo_movimiento_nombre: 'Entrada',
                 cantidad: inc,
                 referencia: `Lote: ${existingProduct.lote}`,
-                observaciones: existingProduct.is_active
-                    ? 'Abastecimiento del inventario (reactivado si estaba inactivo)'
+                observaciones: wasInactive
+                    ? 'Abastecimiento del inventario (lote reactivado)'
                     : 'Abastecimiento del inventario',
                 codigo_barras: existingProduct.codigo_barras,
                 lote: existingProduct.lote,
@@ -301,12 +302,16 @@ export class producto_inventarioRepository {
     }
 
 
-    async findProductByInventory (sucursal_id, codigo_barras, lote,fecha_caducidad){
-        const find = await this.model.findOne({
-            where: {sucursal_id, codigo_barras, lote,fecha_caducidad}
-        });
-        if(!find) return null;
-        return find;
+    async findProductByInventory(sucursal_id, codigo_barras, lote, fecha_caducidad, options = {}) {
+        const { transaction, lock } = options;
+        const queryOptions = { where: { sucursal_id, codigo_barras, lote, fecha_caducidad } };
+        if (transaction) {
+            queryOptions.transaction = transaction;
+            // lock: transaction.LOCK.UPDATE → SELECT FOR UPDATE, previene race conditions
+            // en transferencias concurrentes que lean el mismo registro de stock.
+            if (lock) queryOptions.lock = lock;
+        }
+        return await this.model.findOne(queryOptions) ?? null;
     }
 
     async transferProductBulk(source_sucursal_id, productDataList) {
@@ -330,7 +335,8 @@ export class producto_inventarioRepository {
                         source_sucursal_id,
                         codigo_barras,
                         lote,
-                        fecha_caducidad
+                        fecha_caducidad,
+                        { transaction, lock: transaction.LOCK.UPDATE }
                     );
 
                     if (!originProduct) {
@@ -351,7 +357,8 @@ export class producto_inventarioRepository {
                         source_sucursal_id,
                         codigo_barras,
                         lote,
-                        fecha_caducidad
+                        fecha_caducidad,
+                        { transaction, lock: transaction.LOCK.UPDATE }
                     );
                 }
 
@@ -381,7 +388,8 @@ export class producto_inventarioRepository {
                     target_sucursal_id,
                     codigo_barras,
                     lote,
-                    fecha_caducidad
+                    fecha_caducidad,
+                    { transaction, lock: transaction.LOCK.UPDATE }
                 );
 
                 if (targetProduct) {
