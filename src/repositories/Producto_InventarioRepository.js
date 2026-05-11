@@ -2,6 +2,31 @@ import { Op, Sequelize} from 'sequelize'
 import Producto from '../models/Producto.Model.js';
 import Categoria from '../models/Categoria.Model.js';
 
+// Extrae sólo YYYY-MM-DD de cualquier formato y retorna un literal MySQL
+// que bypasea la conversión de timezone de Sequelize.
+// Garantiza que SIEMPRE se almacene como 'YYYY-MM-DD 00:00:00' en la BD.
+const toDateLiteral = (dateInput) => {
+    if (!dateInput) return null;
+    // Si ya es un Sequelize.literal, pasarlo directo
+    if (typeof dateInput === 'object' && typeof dateInput.val === 'string') return dateInput;
+    // Los modelos Sequelize retornan objetos Date — usar toISOString() para obtener 'YYYY-MM-DD'
+    const str = dateInput instanceof Date ? dateInput.toISOString() : String(dateInput);
+    const dateOnly = str.slice(0, 10); // 'YYYY-MM-DD'
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return null;
+    return Sequelize.literal(`'${dateOnly} 00:00:00'`);
+};
+
+// Extrae sólo YYYY-MM-DD de cualquier formato para comparaciones con DATE()
+const toDateOnly = (dateInput) => {
+    if (!dateInput) return null;
+    // Si ya es un Sequelize.literal, extraer la fecha de su valor interno
+    if (typeof dateInput === 'object' && typeof dateInput.val === 'string') {
+        return dateInput.val.replace(/'/g, '').slice(0, 10);
+    }
+    const str = dateInput instanceof Date ? dateInput.toISOString() : String(dateInput);
+    return str.slice(0, 10); // 'YYYY-MM-DD'
+};
+
 export class producto_inventarioRepository {
     constructor(model, movimientoRepo) {
         this.model = model;
@@ -102,7 +127,18 @@ export class producto_inventarioRepository {
         const { transaction, logMovimiento = true } = options;
 
         const existingLot = await this.model.findOne({
-            where: { sucursal_id, codigo_barras: productData.codigo_barras, lote: productData.lote,fecha_caducidad: productData.fecha_caducidad },
+            where: {
+                sucursal_id,
+                codigo_barras: productData.codigo_barras,
+                lote: productData.lote,
+                [Op.and]: [
+                    Sequelize.where(
+                        Sequelize.fn('DATE', Sequelize.col('fecha_caducidad')),
+                        '=',
+                        toDateOnly(productData.fecha_caducidad)
+                    )
+                ]
+            },
             transaction
         });
 
@@ -130,6 +166,7 @@ export class producto_inventarioRepository {
             result = await this.model.create({
             ...productData,
             sucursal_id,
+            fecha_caducidad: toDateLiteral(productData.fecha_caducidad),
             fecha_ultima_actualizacion: new Date()
             }, { transaction });
 
@@ -161,7 +198,7 @@ export class producto_inventarioRepository {
                 Sequelize.where(
                 Sequelize.fn('DATE', Sequelize.col('fecha_caducidad')),
                 '=',
-                String(p.fecha_caducidad).slice(0, 10)
+                toDateOnly(p.fecha_caducidad)
                 )
             ]
             }));
@@ -217,6 +254,7 @@ export class producto_inventarioRepository {
                 ...product,
                 sucursal_id,
                 is_active: true,
+                fecha_caducidad: toDateLiteral(product.fecha_caducidad),
                 fecha_ultima_actualizacion: new Date(),
                 });
             }
@@ -291,6 +329,9 @@ export class producto_inventarioRepository {
             sucursal_id: product.sucursal_id ?? null,
             }, { transaction });
 
+            if (productData.fecha_caducidad != null) {
+                productData.fecha_caducidad = toDateLiteral(productData.fecha_caducidad);
+            }
             const updated = await product.update({ ...productData, fecha_ultima_actualizacion: new Date() }, { transaction });
 
             await transaction.commit();
@@ -304,7 +345,20 @@ export class producto_inventarioRepository {
 
     async findProductByInventory(sucursal_id, codigo_barras, lote, fecha_caducidad, options = {}) {
         const { transaction, lock } = options;
-        const queryOptions = { where: { sucursal_id, codigo_barras, lote, fecha_caducidad } };
+        const queryOptions = {
+            where: {
+                sucursal_id,
+                codigo_barras,
+                lote,
+                [Op.and]: [
+                    Sequelize.where(
+                        Sequelize.fn('DATE', Sequelize.col('fecha_caducidad')),
+                        '=',
+                        toDateOnly(fecha_caducidad)
+                    )
+                ]
+            }
+        };
         if (transaction) {
             queryOptions.transaction = transaction;
             // lock: transaction.LOCK.UPDATE → SELECT FOR UPDATE, previene race conditions
@@ -405,7 +459,7 @@ export class producto_inventarioRepository {
                             codigo_barras,
                             lote,
                             existencias: cantidad,
-                            fecha_caducidad: originProduct.fecha_caducidad,
+                            fecha_caducidad: toDateLiteral(originProduct.fecha_caducidad),
                             is_active: true
                         },
                         { transaction, logMovimiento: false }
