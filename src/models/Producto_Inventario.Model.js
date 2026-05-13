@@ -55,7 +55,7 @@ Producto_Inventario.init({
         allowNull: false,
     },
     fecha_caducidad: {
-        type: DataTypes.DATE,
+        type: DataTypes.DATEONLY,
         allowNull: false,
     },
     is_active: {
