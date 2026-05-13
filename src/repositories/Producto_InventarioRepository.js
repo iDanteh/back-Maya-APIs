@@ -61,13 +61,49 @@ export class producto_inventarioRepository {
 
     // Nuevo método para buscar productos por sucursal_id
     // Actualización para obtener también la información de los productos
-    async findByInventoryId(sucursal_id, { limit = 200, offset = 0 } = {}) {
+    async findByInventoryId(sucursal_id, { limit = 200, offset = 0, skipCount = false } = {}) {
+        const where = { sucursal_id, is_active: true, existencias: { [Op.gt]: 0 } };
+        const include = [
+            {
+                model: Producto,
+                attributes: { exclude: [] },
+                include: [
+                    {
+                        model: Categoria,
+                        as: 'categoria',
+                        attributes: ['categoria_id', 'nombre', 'descripcion', 'descuento', 'dia_descuento', 'impuesto']
+                    }
+                ]
+            }
+        ];
+
+        // Páginas 2..N: omitir COUNT — el total ya lo conoce el cliente desde página 1.
+        // findAndCountAll emite dos queries (SELECT COUNT + SELECT data) en cada llamada;
+        // para N-1 páginas eso son N-1 COUNTs innecesarios sobre la tabla completa.
+        if (skipCount) {
+            const rows = await this.model.findAll({ where, include, limit, offset });
+            return { count: null, rows };
+        }
+
         const { count, rows } = await this.model.findAndCountAll({
+            where,
+            include,
+            limit,
+            offset,
+            distinct: true,
+        });
+        return { count, rows };
+    }
+
+    // Carga completa sin paginación. Seguro hasta ~8K filas por sucursal.
+    // Por encima de ese umbral considerar cursor-based pagination.
+    async findAllByInventoryId(sucursal_id) {
+        return this.model.findAll({
             where: { sucursal_id, is_active: true, existencias: { [Op.gt]: 0 } },
             include: [
                 {
                     model: Producto,
-                    attributes: { exclude: []},
+                    attributes: { exclude: [] },
                     include: [
                         {
                             model: Categoria,
@@ -77,11 +113,8 @@ export class producto_inventarioRepository {
                     ]
                 }
             ],
-            limit,
-            offset,
-            distinct: true,
+            order: [['producto_inventario_id', 'ASC']],
         });
-        return { count, rows };
     }
 
     async findFaltantesByInventoryId(sucursal_id) {

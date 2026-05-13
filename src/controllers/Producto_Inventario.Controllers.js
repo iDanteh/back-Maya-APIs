@@ -44,23 +44,35 @@ export const getProductoInventario = async (req, res) => {
 
 export const getProductsByInventory = async (req, res) => {
     try {
-        // syncedAt capturado ANTES de la query para que el frontend lo use como
-        // punto de corte del próximo delta sync. Si se captura después, cualquier
-        // producto insertado durante la ejecución de la query quedaría fuera del delta.
-        const syncedAt = new Date().toISOString();
-
         const { sucursal_id } = req.params;
+
+        // Carga completa en un solo request. Recomendado hasta ~8K filas por sucursal.
+        // syncedAt se captura ANTES de la query para que el cliente lo use como punto
+        // de corte del próximo delta sync sin riesgo de dejar huecos.
+        if (req.query.all === 'true') {
+            const syncedAt = new Date().toISOString();
+            const productos = await repoProductoInventario.findAllByInventoryId(sucursal_id);
+            return res.json({ data: productos, total: productos.length, syncedAt });
+        }
+
+        // Ruta paginada — queda como fallback para inventarios fuera del umbral.
         const { limit, offset, page } = getPagination(req.query);
+        const isFirstPage = page === 1;
+        const syncedAt = isFirstPage ? new Date().toISOString() : undefined;
 
-        const { count, rows: productos } = await repoProductoInventario.findByInventoryId(sucursal_id, { limit, offset });
+        const { count, rows: productos } = await repoProductoInventario.findByInventoryId(
+            sucursal_id,
+            { limit, offset, skipCount: !isFirstPage }
+        );
 
-        res.json({
-            data: productos,
-            total: count,
-            page,
-            totalPages: Math.ceil(count / limit),
-            syncedAt,
-        });
+        const response = { data: productos, page };
+        if (isFirstPage) {
+            response.total = count;
+            response.totalPages = Math.ceil(count / limit);
+            response.syncedAt = syncedAt;
+        }
+
+        res.json(response);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
