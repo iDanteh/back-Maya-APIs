@@ -93,6 +93,17 @@ export const createVenta = async (req, res) => {
         });
 
     } catch (error) {
+        // Venta duplicada: el cliente reintentó una venta que ya fue procesada.
+        // Ocurre cuando el cliente tuvo un timeout pero el servidor sí completó la operación.
+        // Devolvemos 409 para que el cliente elimine la venta de su cola offline sin contarla
+        // como un error de negocio ni incrementar su contador de reintentos.
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({
+                error: 'Venta duplicada',
+                details: 'Esta venta ya fue registrada anteriormente',
+            });
+        }
+
         const statusCode =
         (error.message.includes("No hay suficiente stock") || error.message.includes("no encontrado"))
             ? 400

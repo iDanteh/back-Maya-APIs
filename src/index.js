@@ -20,13 +20,26 @@ console.log(new Date().toString());
 
 app.options('*', cors());
 
-app.use(express.urlencoded({ extended: true })); 
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
-app.use(express.json()); 
+app.use(express.json({ limit: '10mb' }));
+
+// Health check — sin consulta a BD, responde siempre en <10ms.
+// Registrado en ambas rutas:
+//   /health        → acceso directo al servidor (local dev, herramientas de monitoreo)
+//   /api/v1/health → acceso desde el frontend (VITE_API_URL ya incluye /api/v1 como prefijo,
+//                    por lo que el ping construye VITE_API_URL + '/health' = .../api/v1/health)
+app.get('/health',        (_req, res) => res.status(200).json({ ok: true }));
+app.get('/api/v1/health', (_req, res) => res.status(200).json({ ok: true }));
+
 app.use(routes);
 
-// Asignación del puerto que va a escuchar el servidor
-app.listen(PORT);
+// Asignación del puerto que va a escuchar el servidor.
+// keepAliveTimeout: mantiene la conexión TCP abierta 30s para reutilizarla.
+// headersTimeout debe ser siempre mayor que keepAliveTimeout para evitar race condition.
+const server = app.listen(PORT);
+server.keepAliveTimeout = 30_000;
+server.headersTimeout = 35_000;
 console.log('Escuchando en el puerto', PORT);
 
 // Prueba para la conexión con la base de datos workbench
