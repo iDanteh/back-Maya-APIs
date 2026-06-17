@@ -41,7 +41,14 @@ export class producto_inventarioRepository {
         return this.model.findAll({
             where: {
                 sucursal_id,
-                fecha_ultima_actualizacion: { [Op.gt]: since },
+                // NULL en fecha_ultima_actualizacion significa que el registro nunca fue
+                // actualizado por código (INSERT directo, migración sin el campo, etc.).
+                // Se incluyen para que el cliente pueda evaluar su estado actual y, si
+                // tienen existencias <= 0 o is_active = false, eliminarlos del caché.
+                [Op.or]: [
+                    { fecha_ultima_actualizacion: { [Op.gt]: since } },
+                    { fecha_ultima_actualizacion: null },
+                ],
             },
             include: [
                 {
