@@ -14,10 +14,33 @@ export class VentaRepository {
         this.movimientoInventarioModel = movimientoInventarioModel;
     }
 
+    _normalizeDetallesVenta(detallesVenta) {
+        return Object.values(detallesVenta.reduce((acc, detalle) => {
+            const llave = `${detalle.codigo_barras}|${detalle.lote}`;
+            if (!acc[llave]) {
+                acc[llave] = { ...detalle };
+                return acc;
+            }
+
+            if (acc[llave].precio_unitario !== detalle.precio_unitario) {
+                throw new Error(`Detalle duplicado con mismo codigo_barras=${detalle.codigo_barras} y lote=${detalle.lote} pero precio_unitario distinto`);
+            }
+
+            acc[llave].cantidad += Number(detalle.cantidad || 0);
+            acc[llave].subtotal += Number(detalle.subtotal || 0);
+            acc[llave].descuento += Number(detalle.descuento || 0);
+            return acc;
+        }, {}));
+    }
+
     async createVentaWithDetails(ventaData, detallesVenta) {
         const transaction = await this.ventaModel.sequelize.transaction();
         
         try {
+            const detallesNormalizados = this._normalizeDetallesVenta(detallesVenta);
+            const totalCalculado = detallesNormalizados.reduce((sum, detalle) => sum + Number(detalle.subtotal || 0), 0);
+            ventaData.total = Number(totalCalculado.toFixed(2));
+
             // 1. Crear la venta principal
             //const nuevaVenta = await this.ventaModel.create(ventaData, { transaction });
             let nuevaVenta;
@@ -58,7 +81,7 @@ export class VentaRepository {
             }
             
             // 2. Procesar cada detalle de venta
-            for (const detalle of detallesVenta) {
+            for (const detalle of detallesNormalizados) {
                 if (!detalle.lote) {
                     throw new Error('Cada detalle de venta debe especificar un lote');
                 }

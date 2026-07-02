@@ -30,6 +30,39 @@ function buildVentaIdClientStyle(sucursal_id, fecha = new Date()) {
     return `V${suc}${ts}${rnd}`;
 }
 
+const parseDetalleVentaItem = (detalle, index) => {
+    const cantidad = Number(detalle.cantidad);
+    const precio_unitario = Number(detalle.precio_unitario);
+    const subtotal = Number(detalle.subtotal);
+    const descuento = Number(detalle.descuento ?? 0);
+
+    if (!detalle.codigo_barras || !detalle.lote) {
+        throw new Error(`Detalle ${index + 1}: falta codigo_barras o lote`);
+    }
+    if (!Number.isFinite(cantidad) || cantidad <= 0 || !Number.isInteger(cantidad)) {
+        throw new Error(`Detalle ${index + 1}: cantidad inválida (${detalle.cantidad})`);
+    }
+    if (!Number.isFinite(precio_unitario) || precio_unitario < 0) {
+        throw new Error(`Detalle ${index + 1}: precio_unitario inválido (${detalle.precio_unitario})`);
+    }
+    if (!Number.isFinite(subtotal) || subtotal < 0) {
+        throw new Error(`Detalle ${index + 1}: subtotal inválido (${detalle.subtotal})`);
+    }
+    if (!Number.isFinite(descuento) || descuento < 0) {
+        throw new Error(`Detalle ${index + 1}: descuento inválido (${detalle.descuento})`);
+    }
+
+    return {
+        ...detalle,
+        cantidad,
+        precio_unitario,
+        subtotal,
+        descuento,
+    };
+};
+
+const areNumbersEqual = (a, b, tolerance = 0.01) => Math.abs(a - b) <= tolerance;
+
 export const createVenta = async (req, res) => {
     try {
         const {
@@ -64,14 +97,45 @@ export const createVenta = async (req, res) => {
         return res.status(400).json({ error: "Todos los productos deben especificar un lote" });
         }
 
+        const detallesParsed = detalles.map(parseDetalleVentaItem);
+        const detallesNormalizados = Object.values(
+        detallesParsed.reduce((acc, detalle) => {
+            const llave = `${detalle.codigo_barras}|${detalle.lote}`;
+            if (!acc[llave]) {
+            acc[llave] = { ...detalle };
+            return acc;
+            }
+
+            if (acc[llave].precio_unitario !== detalle.precio_unitario) {
+            throw new Error(`Detalle duplicado con mismo codigo_barras=${detalle.codigo_barras} y lote=${detalle.lote} pero precio_unitario distinto`);
+            }
+
+            acc[llave].cantidad += detalle.cantidad;
+            acc[llave].subtotal += detalle.subtotal;
+            acc[llave].descuento += detalle.descuento;
+            return acc;
+        }, {})
+        );
+
+        const totalCalculado = detallesNormalizados.reduce((sum, d) => sum + d.subtotal, 0);
         const totalNum = Number(total);
-        const totalRecibidoNum = Number(total_recibido ?? total);
+        const totalRecibidoNum = Number(total_recibido ?? totalCalculado);
 
         if (!Number.isFinite(totalNum) || totalNum <= 0) {
         return res.status(400).json({ error: "El total de la venta debe ser un número positivo" });
         }
 
-        if (!Number.isFinite(totalRecibidoNum) || totalRecibidoNum < totalNum) {
+        if (!areNumbersEqual(totalCalculado, totalNum)) {
+        return res.status(400).json({
+            error: "El total de la venta no coincide con la suma de los subtotales de los detalles",
+            details: {
+            total_reportado: totalNum,
+            total_calculado: Number(totalCalculado.toFixed(2)),
+            },
+        });
+        }
+
+        if (!Number.isFinite(totalRecibidoNum) || totalRecibidoNum < totalCalculado) {
         return res.status(400).json({ error: "El dinero recibido no puede ser menor al total de la venta" });
         }
 
@@ -81,11 +145,11 @@ export const createVenta = async (req, res) => {
         fecha_venta: new Date(fecha_venta),
         sucursal_id,
         usuario_id,
-        total: totalNum,
+        total: Number(totalCalculado.toFixed(2)),
         total_recibido: totalRecibidoNum,
         };
 
-        const nuevaVenta = await ventaRepository.createVentaWithDetails(ventaData, detalles);
+        const nuevaVenta = await ventaRepository.createVentaWithDetails(ventaData, detallesParsed);
 
         return res.status(201).json({
         message: "Venta registrada exitosamente",
