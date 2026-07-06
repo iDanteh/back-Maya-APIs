@@ -6,6 +6,7 @@ import morgan from 'morgan'; // Importar morgan para ver las peticiones en conso
 import cors from 'cors';
 import 'dotenv/config';
 import './models/initModels.js';
+import errorHandler from './middlewares/errorHandler.js'; // Importar el middleware de manejo de errores
 
 const app = express();
 
@@ -57,3 +58,5 @@ console.log('Escuchando en el puerto', PORT);
         console.error('Error al conectarse a la base de datos:', error);
     }
 })();
+
+app.use(errorHandler); // Middleware de manejo de errores
