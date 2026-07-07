@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { getProductoInventario, getProductsByInventory, getSyncInventario,
     searchProduct, deleteLot, transferirProducto, transferirMultiplesProductos,
-    addMultipleProductsToInventory, addProductToInventory, updateProductData, getFaltantesProductsByInventory} from "../controllers/Producto_Inventario.Controllers.js";
+    addMultipleProductsToInventory, addProductToInventory, updateProductData, getFaltantesProductsByInventory,
+    desactivarProductosCad} from "../controllers/Producto_Inventario.Controllers.js";
 import { verifyToken } from '../middlewares/auth.js';
 
 const router = Router();
@@ -21,6 +22,9 @@ router.post('/api/v1/productoInventario/transferir', transferirProducto);
 router.post('/api/v1/productoInventario/transferir-multiples', transferirMultiplesProductos);
 
 // Ruta para obtener productos faltantes (sin stock) en una sucursal
-router.get('/api/v1/productoInventario/faltantes/:sucursal_id',  getFaltantesProductsByInventory)
+router.get('/api/v1/productoInventario/faltantes/:sucursal_id',  getFaltantesProductsByInventory);
+
+//Ruta para desactivar y actualizar los productos caducados
+router.patch('/api/v1/productoInventario/:sucursal_id/caducados',desactivarProductosCad);
 
 export default router;

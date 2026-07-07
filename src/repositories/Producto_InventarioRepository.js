@@ -538,4 +538,59 @@ export class producto_inventarioRepository {
             throw error;
         }
     }
+
+    //Nueva método para actualizar las existencias y el estado de los productos caducados
+    async desactivarProductosCaducados(sucursal_id) {
+        const transaction = await this.model.sequelize.transaction();
+
+        try {
+            const productosCaducados = await this.model.findAll({
+                where: {
+                    sucursal_id,
+                    fecha_caducidad: {
+                        [Op.lt]: Sequelize.fn("CURDATE")
+                    },
+                    [Op.or]: [
+                        { existencias: { [Op.gt]: 0 } },
+                        { is_active: true }
+                    ]
+                },
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            for (const producto of productosCaducados) {
+
+                //Registrar movimiento únicamente si todavía tenía existencias
+                if (producto.existencias > 0) {
+                    await this.movimientoRepo.createMovimiento({
+                        producto_inventario_id: producto.producto_inventario_id,
+                        tipo_movimiento_nombre: "Caducidad",
+                        cantidad: producto.existencias,
+                        referencia: `Lote: ${producto.lote}`,
+                        observaciones: "Producto desactivado automáticamente por fecha de caducidad.",
+                        codigo_barras: producto.codigo_barras,
+                        lote: producto.lote,
+                        sucursal_id: producto.sucursal_id
+                    }, { transaction });
+                }
+
+                await producto.update({
+                    existencias: 0,
+                    is_active: false,
+                    fecha_ultima_actualizacion: new Date()
+                }, { transaction });
+            }
+
+            await transaction.commit();
+
+            return {
+                total: productosCaducados.length
+            };
+
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 }
