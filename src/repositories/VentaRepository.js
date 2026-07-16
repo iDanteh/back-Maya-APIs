@@ -117,6 +117,10 @@ export class VentaRepository {
 
     async actualizarInventarioPorLote(sucursal_id, codigo_barras, lote, cantidad, transaction) {
         const qty = Number(cantidad || 0);
+        const transactionOptions = transaction ? { transaction } : {};
+        if (transaction && transaction.LOCK && transaction.LOCK.UPDATE) {
+            transactionOptions.lock = transaction.LOCK.UPDATE;
+        }
 
         // 1) Tomar el registro correcto: activo y con stock
         const productoInventario = await this.productoInventarioModel.findOne({
@@ -132,8 +136,7 @@ export class VentaRepository {
             ['fecha_ultima_actualizacion', 'DESC'],
             ['producto_inventario_id', 'DESC'],
             ],
-            transaction,
-            lock: transaction.LOCK.UPDATE,
+            ...transactionOptions,
         });
 
         if (!productoInventario) {
@@ -141,7 +144,7 @@ export class VentaRepository {
             where: { sucursal_id, codigo_barras, lote },
             attributes: ['producto_inventario_id', 'existencias', 'is_active', 'fecha_ultima_actualizacion'],
             order: [['producto_inventario_id', 'ASC']],
-            transaction,
+            ...transactionOptions,
             });
 
             throw new Error(
@@ -157,7 +160,7 @@ export class VentaRepository {
             fecha_ultima_actualizacion: new Date(),
             is_active: (productoInventario.existencias - qty) > 0,
             },
-            { transaction }
+            transaction ? { transaction } : undefined
         );
 
         // 3) Movimiento
@@ -167,7 +170,7 @@ export class VentaRepository {
             cantidad: qty,
             referencia: productoInventario.lote,
             observaciones: 'Venta de productos',
-        }, { transaction });
+        }, transaction ? { transaction } : undefined);
 
         // Devolver el ID real del registro descontado para que createVentaWithDetails
         // lo guarde en detalle_venta (en lugar del ID stale que vino del cliente)
