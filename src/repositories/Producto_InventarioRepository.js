@@ -1,6 +1,12 @@
 import { Op, Sequelize} from 'sequelize'
 import Producto from '../models/Producto.Model.js';
 import Categoria from '../models/Categoria.Model.js';
+import {
+    aggregateInventoryProducts,
+    buildInventoryLotWhere,
+    isDuplicateInventoryError,
+    normalizeInventoryProductData,
+} from '../utils/Producto_InventarioRepository.utils.js';
 
 // Extrae sólo YYYY-MM-DD de cualquier formato y retorna un literal MySQL
 // que bypasea la conversión de timezone de Sequelize.
@@ -25,6 +31,11 @@ const toDateOnly = (dateInput) => {
     }
     const str = dateInput instanceof Date ? dateInput.toISOString() : String(dateInput);
     return str.slice(0, 10); // 'YYYY-MM-DD'
+};
+
+const safeTransactionAction = async (transaction, action) => {
+    if (!transaction || typeof transaction[action] !== 'function') return;
+    await transaction[action]();
 };
 
 export class producto_inventarioRepository {
@@ -165,63 +176,55 @@ export class producto_inventarioRepository {
 
     async createProductInInventory(sucursal_id, productData, options = {}) {
         const { transaction, logMovimiento = true } = options;
+        const normalizedProduct = normalizeInventoryProductData({ ...productData, sucursal_id });
 
         const existingLot = await this.model.findOne({
-            where: {
-                sucursal_id,
-                codigo_barras: productData.codigo_barras,
-                lote: productData.lote,
-                [Op.and]: [
-                    Sequelize.where(
-                        Sequelize.fn('DATE', Sequelize.col('fecha_caducidad')),
-                        '=',
-                        toDateOnly(productData.fecha_caducidad)
-                    )
-                ]
-            },
+            where: buildInventoryLotWhere(sucursal_id, normalizedProduct),
             transaction
         });
 
         let result;
         if (existingLot) {
+            const incomingQuantity = Number(normalizedProduct.existencias || 0);
             result = await existingLot.update({
-            existencias: existingLot.existencias + productData.existencias,
-            fecha_ultima_actualizacion: new Date()
+                existencias: Number(existingLot.existencias || 0) + incomingQuantity,
+                is_active: true,
+                fecha_ultima_actualizacion: new Date()
             }, { transaction });
 
             if (logMovimiento) {
-            await this.movimientoRepo.createMovimiento({
-                producto_inventario_id: existingLot.producto_inventario_id,
-                tipo_movimiento_nombre: 'Entrada',
-                cantidad: productData.existencias,
-                referencia: `Lote: ${productData.lote}`,
-                observaciones: 'Reabastecimiento de inventario',
-                codigo_barras: existingLot.codigo_barras,
-                lote: existingLot.lote,
-                sucursal_id
-            }, { transaction });
+                await this.movimientoRepo.createMovimiento({
+                    producto_inventario_id: existingLot.producto_inventario_id,
+                    tipo_movimiento_nombre: 'Entrada',
+                    cantidad: incomingQuantity,
+                    referencia: `Lote: ${existingLot.lote}`,
+                    observaciones: 'Reabastecimiento de inventario',
+                    codigo_barras: existingLot.codigo_barras,
+                    lote: existingLot.lote,
+                    sucursal_id
+                }, { transaction });
             }
 
         } else {
             result = await this.model.create({
-            ...productData,
-            sucursal_id,
-            fecha_caducidad: toDateLiteral(productData.fecha_caducidad),
-            fecha_ultima_actualizacion: new Date()
+                ...normalizedProduct,
+                sucursal_id,
+                is_active: true,
+                fecha_caducidad: toDateLiteral(normalizedProduct.fecha_caducidad),
+                fecha_ultima_actualizacion: new Date()
             }, { transaction });
 
             if (logMovimiento) {
-            await this.movimientoRepo.createMovimiento({
-                producto_inventario_id: result.producto_inventario_id,
-                tipo_movimiento_nombre: 'Entrada',
-                cantidad: productData.existencias,
-                referencia: `Lote: ${productData.lote}`,
-                observaciones: 'Nuevo lote ingresado',
-                // <<< evita N/A:
-                codigo_barras: productData.codigo_barras,
-                lote: productData.lote,
-                sucursal_id
-            }, { transaction });
+                await this.movimientoRepo.createMovimiento({
+                    producto_inventario_id: result.producto_inventario_id,
+                    tipo_movimiento_nombre: 'Entrada',
+                    cantidad: Number(normalizedProduct.existencias || 0),
+                    referencia: `Lote: ${normalizedProduct.lote}`,
+                    observaciones: 'Nuevo lote ingresado',
+                    codigo_barras: normalizedProduct.codigo_barras,
+                    lote: normalizedProduct.lote,
+                    sucursal_id
+                }, { transaction });
             }
         }
         return result;
@@ -230,94 +233,77 @@ export class producto_inventarioRepository {
     async bulkCreateProductsInInventory(sucursal_id, productsData) {
         const transaction = await this.model.sequelize.transaction();
         try {
-            const orConditions = productsData.map(p => ({
-            sucursal_id,
-            codigo_barras: p.codigo_barras,
-            lote: p.lote,
-            [Op.and]: [
-                Sequelize.where(
-                Sequelize.fn('DATE', Sequelize.col('fecha_caducidad')),
-                '=',
-                toDateOnly(p.fecha_caducidad)
-                )
-            ]
-            }));
-
+            const normalizedProducts = aggregateInventoryProducts(productsData.map(product => ({ ...product, sucursal_id })));
             const existingProducts = await this.model.findAll({
-            where: { [Op.or]: orConditions },
-            transaction,
-            lock: transaction.LOCK.UPDATE,
+                where: {
+                    [Op.or]: normalizedProducts.map(product => buildInventoryLotWhere(sucursal_id, product))
+                },
+                transaction,
+                lock: transaction.LOCK.UPDATE,
             });
 
-            const ymdOf = (v) => {
-            if (!v) return null;
-            const d = (v instanceof Date) ? v : new Date(v);
-            if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
-            return d.toISOString().slice(0, 10);
-            };
+            const existingMap = new Map(existingProducts.map(product => [
+                `${String(product.codigo_barras || '')}||${String(product.lote || '')}||${toDateOnly(product.fecha_caducidad)}`,
+                product
+            ]));
 
-            const keyOf = (x) => `${String(x.codigo_barras)}||${String(x.lote)}||${ymdOf(x.fecha_caducidad)}`;
-            const existingMap = new Map(existingProducts.map(p => [keyOf(p), p]));
-
-            const updatesMap = new Map();
+            const updates = [];
             const newEntries = [];
 
-            for (const product of productsData) {
-            const inc = Number(product.existencias || 0);
-            const k = keyOf(product);
+            for (const product of normalizedProducts) {
+                const normalizedProduct = normalizeInventoryProductData(product);
+                const existingProduct = existingMap.get(
+                    `${String(normalizedProduct.codigo_barras || '')}||${String(normalizedProduct.lote || '')}||${toDateOnly(normalizedProduct.fecha_caducidad)}`
+                );
 
-            const existingProduct = existingMap.get(k);
+                if (existingProduct) {
+                    const wasInactive = !existingProduct.is_active;
+                    const incomingQuantity = Number(normalizedProduct.existencias || 0);
+                    existingProduct.existencias = Number(existingProduct.existencias || 0) + incomingQuantity;
+                    existingProduct.is_active = true;
+                    existingProduct.fecha_ultima_actualizacion = new Date();
+                    updates.push(existingProduct);
 
-            if (existingProduct) {
-                const wasInactive = !existingProduct.is_active;
-                existingProduct.existencias = Number(existingProduct.existencias || 0) + inc;
-                existingProduct.fecha_ultima_actualizacion = new Date();
-                existingProduct.is_active = true;
-
-                updatesMap.set(k, existingProduct);
-
-                await this.movimientoRepo.createMovimiento({
-                producto_inventario_id: existingProduct.producto_inventario_id,
-                tipo_movimiento_nombre: 'Entrada',
-                cantidad: inc,
-                referencia: `Lote: ${existingProduct.lote}`,
-                observaciones: wasInactive
-                    ? 'Abastecimiento del inventario (lote reactivado)'
-                    : 'Abastecimiento del inventario',
-                codigo_barras: existingProduct.codigo_barras,
-                lote: existingProduct.lote,
-                sucursal_id
-                }, { transaction });
-
-            } else {
-                newEntries.push({
-                ...product,
-                sucursal_id,
-                is_active: true,
-                fecha_caducidad: toDateLiteral(product.fecha_caducidad),
-                fecha_ultima_actualizacion: new Date(),
-                });
+                    await this.movimientoRepo.createMovimiento({
+                        producto_inventario_id: existingProduct.producto_inventario_id,
+                        tipo_movimiento_nombre: 'Entrada',
+                        cantidad: incomingQuantity,
+                        referencia: `Lote: ${existingProduct.lote}`,
+                        observaciones: wasInactive
+                            ? 'Abastecimiento del inventario (lote reactivado)'
+                            : 'Abastecimiento del inventario',
+                        codigo_barras: existingProduct.codigo_barras,
+                        lote: existingProduct.lote,
+                        sucursal_id
+                    }, { transaction });
+                } else {
+                    newEntries.push({
+                        ...normalizedProduct,
+                        sucursal_id,
+                        is_active: true,
+                        fecha_caducidad: toDateLiteral(normalizedProduct.fecha_caducidad),
+                        fecha_ultima_actualizacion: new Date(),
+                    });
+                }
             }
-            }
 
-            const updates = Array.from(updatesMap.values());
             if (updates.length > 0) {
-            await Promise.all(updates.map(p => p.save({ transaction })));
+                await Promise.all(updates.map(product => product.save({ transaction })));
             }
 
             for (const newProduct of newEntries) {
-            const createdProduct = await this.model.create(newProduct, { transaction });
+                const createdProduct = await this.model.create(newProduct, { transaction });
 
-            await this.movimientoRepo.createMovimiento({
-                producto_inventario_id: createdProduct.producto_inventario_id,
-                tipo_movimiento_nombre: 'Entrada',
-                cantidad: Number(newProduct.existencias || 0),
-                referencia: `Lote: ${newProduct.lote}`,
-                observaciones: 'Nuevo lote ingresado',
-                codigo_barras: newProduct.codigo_barras,
-                lote: newProduct.lote,
-                sucursal_id
-            }, { transaction });
+                await this.movimientoRepo.createMovimiento({
+                    producto_inventario_id: createdProduct.producto_inventario_id,
+                    tipo_movimiento_nombre: 'Entrada',
+                    cantidad: Number(newProduct.existencias || 0),
+                    referencia: `Lote: ${newProduct.lote}`,
+                    observaciones: 'Nuevo lote ingresado',
+                    codigo_barras: newProduct.codigo_barras,
+                    lote: newProduct.lote,
+                    sucursal_id
+                }, { transaction });
             }
 
             await transaction.commit();
@@ -325,6 +311,9 @@ export class producto_inventarioRepository {
 
         } catch (error) {
             await transaction.rollback();
+            if (isDuplicateInventoryError(error)) {
+                throw new Error('Ya existe un registro activo con ese código de barras, lote y fecha de caducidad en esta sucursal.');
+            }
             throw error;
         }
     }
@@ -354,7 +343,7 @@ export class producto_inventarioRepository {
         try {
             const product = await this.model.findByPk(producto_inventario_id);
             if (!product) {
-            await transaction.rollback();
+            await safeTransactionAction(transaction, 'rollback');
             return null;
             }
 
@@ -369,15 +358,20 @@ export class producto_inventarioRepository {
             sucursal_id: product.sucursal_id ?? null,
             }, { transaction });
 
+            if ('existencias' in productData) {
+                productData.existencias = Number(productData.existencias || 0);
+                productData.is_active = productData.existencias > 0;
+            }
+
             if (productData.fecha_caducidad != null) {
                 productData.fecha_caducidad = toDateLiteral(productData.fecha_caducidad);
             }
             const updated = await product.update({ ...productData, fecha_ultima_actualizacion: new Date() }, { transaction });
 
-            await transaction.commit();
+            await safeTransactionAction(transaction, 'commit');
             return updated;
         } catch (err) {
-            await transaction.rollback();
+            await safeTransactionAction(transaction, 'rollback');
             throw err;
         }
     }
