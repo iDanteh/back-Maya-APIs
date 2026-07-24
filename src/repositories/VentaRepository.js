@@ -41,45 +41,14 @@ export class VentaRepository {
             const totalCalculado = detallesNormalizados.reduce((sum, detalle) => sum + Number(detalle.subtotal || 0), 0);
             ventaData.total = Number(totalCalculado.toFixed(2));
 
-            // 1. Crear la venta principal
-            //const nuevaVenta = await this.ventaModel.create(ventaData, { transaction });
-            let nuevaVenta;
+            // 1. Crear la venta principal. Si venta_id ya existe (reintento del cliente
+            // tras un timeout donde el servidor sí había completado la venta original),
+            // MySQL rechaza el INSERT por PK duplicada y Sequelize lanza
+            // SequelizeUniqueConstraintError, que se propaga al catch de abajo (rollback)
+            // y de ahí al controller, que ya responde 409 "Venta duplicada" — antes de
+            // tocar detalle_venta o descontar inventario.
+            const nuevaVenta = await this.ventaModel.create(ventaData, { transaction });
 
-            try {
-                nuevaVenta = await this.ventaModel.create(ventaData, { 
-                    transaction,
-                    ignoreDuplicates: true
-                });
-
-                if (!nuevaVenta) {
-                    console.log('⚠️ Venta duplicada detectada, se omite');
-
-                    await transaction.rollback();
-
-                    return {
-                        success: true,
-                        duplicated: true,
-                        message: 'Venta ya registrada'
-                    };
-                }
-
-            } catch (error) {
-
-                if (error.name === 'SequelizeUniqueConstraintError') {
-                    console.log('⚠️ Venta duplicada detectada (catch)');
-
-                    await transaction.rollback();
-
-                    return {
-                        success: true,
-                        duplicated: true,
-                        message: 'Venta ya registrada'
-                    };
-                }
-
-                throw error;
-            }
-            
             // 2. Procesar cada detalle de venta
             for (const detalle of detallesNormalizados) {
                 if (!detalle.lote) {
