@@ -26,7 +26,12 @@ export const getEntradasBySucursal = async (req, res) => {
 
     try {
         const { limit, offset } = getPagination(req.query);
-        const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id, { limit, offset });
+        const { codigo_barras } = req.query;
+        const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id, {
+            limit,
+            offset,
+            ...(codigo_barras ? { codigo_barras } : {}),
+        });
 
         const entradasFormateadas = entradas.map(entrada => ({
             ...entrada,
@@ -49,7 +54,12 @@ export const getSalidasBySucursal = async (req, res) => {
 
     try {
         const { limit, offset } = getPagination(req.query);
-        const salidas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id, { limit, offset });
+        const { codigo_barras } = req.query;
+        const salidas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id, {
+            limit,
+            offset,
+            ...(codigo_barras ? { codigo_barras } : {}),
+        });
 
         const salidasFormateadas = salidas.map(salida => ({
             ...salida,

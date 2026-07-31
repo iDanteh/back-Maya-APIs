@@ -76,7 +76,7 @@ export class MovimientoInventarioRepository {
         return await this.model.bulkCreate(movimientosData);
     }
 
-    async getEntradasBySucursal(sucursal_id, { limit, offset } = {}) {
+    async getEntradasBySucursal(sucursal_id, { limit, offset, codigo_barras } = {}) {
         const opts = {
             include: [
             {
@@ -102,10 +102,13 @@ export class MovimientoInventarioRepository {
         };
         if (limit !== undefined) opts.limit = limit;
         if (offset !== undefined) opts.offset = offset;
+        if (codigo_barras !== undefined) {
+            opts.include[1].where.codigo_barras = codigo_barras;
+        }
         return await this.model.findAll(opts);
     }
 
-    async getSalidasBySucursal(sucursal_id, { limit, offset } = {}) {
+    async getSalidasBySucursal(sucursal_id, { limit, offset, codigo_barras } = {}) {
         const opts = {
             include: [
             {
@@ -125,6 +128,9 @@ export class MovimientoInventarioRepository {
         };
         if (limit !== undefined) opts.limit = limit;
         if (offset !== undefined) opts.offset = offset;
+        if (codigo_barras !== undefined) {
+            opts.include[1].where.codigo_barras = codigo_barras;
+        }
         return await this.model.findAll(opts);
     }
 
