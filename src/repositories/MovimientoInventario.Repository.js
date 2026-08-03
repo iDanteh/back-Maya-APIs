@@ -77,61 +77,97 @@ export class MovimientoInventarioRepository {
     }
 
     async getEntradasBySucursal(sucursal_id, { limit, offset, codigo_barras } = {}) {
+        const whereProducto = {
+            sucursal_id,
+        };
+
+        if (codigo_barras?.trim()) {
+            whereProducto.codigo_barras = codigo_barras.trim();
+        }
+
         const opts = {
             include: [
-            {
-                model: this.tipoMovimientoModel,
-                where: {
-                    descripcion: [
-                        'Entrada',
-                        'Anulación de venta',
-                        'Actualizacion manual del inventario'
-                    ]
+                {
+                    model: this.tipoMovimientoModel,
+                    where: {
+                        descripcion: [
+                            "Entrada",
+                            "Anulación de venta",
+                            "Actualizacion manual del inventario",
+                        ],
+                    },
+                    attributes: [],
                 },
-                attributes: [],
-            },
-            {
-                model: this.model.sequelize.models.Producto_Inventario,
-                where: { sucursal_id },
-                attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
-                required: true,
-            }
+                {
+                    model: this.model.sequelize.models.Producto_Inventario,
+                    where: whereProducto,
+                    attributes: [
+                        "codigo_barras",
+                        "sucursal_id",
+                        "is_active",
+                    ],
+                    required: true,
+                },
             ],
-            order: [['fecha_movimiento', 'DESC']],
+            order: [["fecha_movimiento", "DESC"]],
             raw: true,
         };
-        if (limit !== undefined) opts.limit = limit;
-        if (offset !== undefined) opts.offset = offset;
-        if (codigo_barras !== undefined) {
-            opts.include[1].where.codigo_barras = codigo_barras;
+
+        if (limit !== undefined) {
+            opts.limit = limit;
         }
-        return await this.model.findAll(opts);
+
+        if (offset !== undefined) {
+            opts.offset = offset;
+        }
+
+        return this.model.findAll(opts);
     }
 
     async getSalidasBySucursal(sucursal_id, { limit, offset, codigo_barras } = {}) {
+        const whereProducto = {
+            sucursal_id,
+        };
+
+        if (codigo_barras?.trim()) {
+            whereProducto.codigo_barras = codigo_barras.trim();
+        }
+
         const opts = {
             include: [
-            {
-                model: this.tipoMovimientoModel,
-                where: { descripcion: 'Salida' },
-                attributes: [],
-            },
-            {
-                model: this.model.sequelize.models.Producto_Inventario,
-                where: { sucursal_id },
-                attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
-                required: true,
-            },
+                {
+                    model: this.tipoMovimientoModel,
+                    where: {
+                        descripcion: [
+                            "Salida"
+                        ],
+                    },
+                    attributes: [],
+                },
+                {
+                    model: this.model.sequelize.models.Producto_Inventario,
+                    where: whereProducto,
+                    attributes: [
+                        "codigo_barras",
+                        "sucursal_id",
+                        "is_active",
+                    ],
+                    required: true,
+                },
             ],
-            order: [['fecha_movimiento', 'DESC']],
+            order: [["fecha_movimiento", "DESC"]],
             raw: true,
         };
-        if (limit !== undefined) opts.limit = limit;
-        if (offset !== undefined) opts.offset = offset;
-        if (codigo_barras !== undefined) {
-            opts.include[1].where.codigo_barras = codigo_barras;
+
+        if (limit !== undefined) {
+            opts.limit = limit;
         }
-        return await this.model.findAll(opts);
+
+        if (offset !== undefined) {
+            opts.offset = offset;
+        }
+
+        return this.model.findAll(opts);
     }
 
 }
