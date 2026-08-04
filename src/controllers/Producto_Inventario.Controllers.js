@@ -271,6 +271,22 @@ export const transferirMultiplesProductos = async (req, res) => {
         res.status(500).json({ error: error.message || 'Error en la transferencia múltiple' });
     }
 };
+    export const getProductosCaducados = async (req, res) => {
+        try {
+            const { sucursal_id } = req.params;
+
+            const productos = await repoProductoInventario.findProductosCaducados(sucursal_id);
+
+            return res.status(200).json(productos);
+            
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            }); 
+        }
+    };
 
 //Desactivar los productos caducados
 export const desactivarProductosCad = async (req, res) => {

@@ -533,6 +533,33 @@ export class producto_inventarioRepository {
         }
     }
 
+    async findProductosCaducados(sucursal_id) {
+        return await this.model.findAll({
+            where: {
+                sucursal_id,
+                fecha_caducidad: {
+                    [Op.lt]: Sequelize.fn("CURDATE")
+                },
+                [Op.or]: [
+                    { existencias: { [Op.gt]: 0 } },
+                    { is_active: true }
+                ]
+            },
+            include: [
+                {
+                    model: Producto,
+                    attributes: [
+                        'codigo_barras',
+                        'descripcion'
+                    ]
+                }
+            ],
+            order: [
+                ['fecha_caducidad', 'ASC']
+            ]
+        });
+    }
+
     //Nueva método para actualizar las existencias y el estado de los productos caducados
     async desactivarProductosCaducados(sucursal_id) {
         const transaction = await this.model.sequelize.transaction();
