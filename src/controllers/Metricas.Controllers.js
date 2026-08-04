@@ -35,10 +35,17 @@ export const getTopProductos = async (req, res, next) => {
         if (!PERIODOS_VALIDOS.includes(periodo)) {
             throw new ApiError(400, `periodo inválido, usa: ${PERIODOS_VALIDOS.join(', ')}`);
         }
+        let limitValue = 5;
+        if (limit !== undefined) {
+            limitValue = Number(limit);
+            if (!Number.isFinite(limitValue) || limitValue < 0) {
+                throw new ApiError(400, 'limit debe ser un número mayor o igual a 0');
+            }
+        }
         const data = await metricasRepository.getTopProductos({
             periodo,
             sucursalId: sucursalId || undefined,
-            limit: limit ? Number(limit) : 5,
+            limit: limitValue,
         });
         return Response.success(res, data);
     } catch (error) {
@@ -49,9 +56,76 @@ export const getTopProductos = async (req, res, next) => {
 export const getProductosPorCaducar = async (req, res, next) => {
     try {
         const { sucursalId, dias } = req.query;
+        let diasValue = 45;
+        if (dias !== undefined) {
+            diasValue = Number(dias);
+            if (!Number.isFinite(diasValue) || diasValue < 0) {
+                throw new ApiError(400, 'dias debe ser un número mayor o igual a 0');
+            }
+        }
         const data = await metricasRepository.getProductosPorCaducar({
             sucursalId: sucursalId || undefined,
-            dias: dias ? Number(dias) : 45,
+            dias: diasValue,
+        });
+        return Response.success(res, data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getVentasDiarias = async (req, res, next) => {
+    try {
+        const { periodo = '7d', sucursalId } = req.query;
+        if (!PERIODOS_VALIDOS.includes(periodo)) {
+            throw new ApiError(400, `periodo inválido, usa: ${PERIODOS_VALIDOS.join(', ')}`);
+        }
+        const data = await metricasRepository.getVentasDiarias({
+            periodo,
+            sucursalId: sucursalId || undefined,
+        });
+        return Response.success(res, data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getTopUsuarios = async (req, res, next) => {
+    try {
+        const { periodo = '7d', sucursalId, limit } = req.query;
+        if (!PERIODOS_VALIDOS.includes(periodo)) {
+            throw new ApiError(400, `periodo inválido, usa: ${PERIODOS_VALIDOS.join(', ')}`);
+        }
+        let limitValue = 5;
+        if (limit !== undefined) {
+            limitValue = Number(limit);
+            if (!Number.isFinite(limitValue) || limitValue < 0) {
+                throw new ApiError(400, 'limit debe ser un número mayor o igual a 0');
+            }
+        }
+        const data = await metricasRepository.getTopUsuarios({
+            periodo,
+            sucursalId: sucursalId || undefined,
+            limit: limitValue,
+        });
+        return Response.success(res, data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getVentasMensuales = async (req, res, next) => {
+    try {
+        const { meses, sucursalId } = req.query;
+        let mesesValue = 12;
+        if (meses !== undefined) {
+            mesesValue = Number(meses);
+            if (!Number.isFinite(mesesValue) || mesesValue < 1) {
+                throw new ApiError(400, 'meses debe ser un número mayor o igual a 1');
+            }
+        }
+        const data = await metricasRepository.getVentasMensuales({
+            meses: mesesValue,
+            sucursalId: sucursalId || undefined,
         });
         return Response.success(res, data);
     } catch (error) {
