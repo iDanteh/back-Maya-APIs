@@ -1,6 +1,7 @@
 import { Op, Sequelize} from 'sequelize'
 import Producto from '../models/Producto.Model.js';
 import Categoria from '../models/Categoria.Model.js';
+import Transferencia from '../models/Transferencia.Model.js';
 import {
     aggregateInventoryProducts,
     buildInventoryLotWhere,
@@ -249,6 +250,9 @@ export class producto_inventarioRepository {
 
             const updates = [];
             const newEntries = [];
+            // Detalle por producto afectado, para la bitácora de auditoría (Sesión 2):
+            // updated/inserted son solo conteos, no alcanzan para saber QUÉ lote se tocó.
+            const afectados = [];
 
             for (const product of normalizedProducts) {
                 const normalizedProduct = normalizeInventoryProductData(product);
@@ -276,6 +280,15 @@ export class producto_inventarioRepository {
                         lote: existingProduct.lote,
                         sucursal_id
                     }, { transaction });
+
+                    afectados.push({
+                        producto_inventario_id: existingProduct.producto_inventario_id,
+                        codigo_barras: existingProduct.codigo_barras,
+                        lote: existingProduct.lote,
+                        cantidad_agregada: incomingQuantity,
+                        existencias_resultantes: existingProduct.existencias,
+                        accion: 'ACTUALIZADO',
+                    });
                 } else {
                     newEntries.push({
                         ...normalizedProduct,
@@ -304,10 +317,19 @@ export class producto_inventarioRepository {
                     lote: newProduct.lote,
                     sucursal_id
                 }, { transaction });
+
+                afectados.push({
+                    producto_inventario_id: createdProduct.producto_inventario_id,
+                    codigo_barras: createdProduct.codigo_barras,
+                    lote: createdProduct.lote,
+                    cantidad_agregada: Number(newProduct.existencias || 0),
+                    existencias_resultantes: createdProduct.existencias,
+                    accion: 'CREADO',
+                });
             }
 
             await transaction.commit();
-            return { updated: updates.length, inserted: newEntries.length };
+            return { updated: updates.length, inserted: newEntries.length, afectados };
 
         } catch (error) {
             await transaction.rollback();
@@ -402,11 +424,34 @@ export class producto_inventarioRepository {
         return await this.model.findOne(queryOptions) ?? null;
     }
 
-    async transferProductBulk(source_sucursal_id, productDataList) {
+    async transferProductBulk(source_sucursal_id, productDataList, usuario_id) {
+        // Calculado antes de la transacción: si algo falla a mitad de camino, el
+        // rollback se lleva puesto cualquier Transferencia creada dentro de ella,
+        // así que para dejar rastro del intento fallido hace falta saber de antemano
+        // a qué destinos se quiso transferir.
+        const destinosIntentados = [...new Set(productDataList.map(p => p.target_sucursal_id).filter(Boolean))];
         const transaction = await this.model.sequelize.transaction();
         try {
             const transferResults = [];
             const tempExistencias = {};
+            // Un mismo request puede transferir a varias sucursales destino a la vez
+            // (se elige destino por producto en el frontend). Cada par (origen, destino)
+            // es una transferencia distinta — se crea una sola vez y se reutiliza su
+            // transferencia_id para correlacionar todos los movimientos de ese grupo.
+            const transferenciaPorDestino = {};
+
+            const getOrCreateTransferencia = async (target_sucursal_id) => {
+                if (!transferenciaPorDestino[target_sucursal_id]) {
+                    const transferencia = await Transferencia.create({
+                        usuario_id,
+                        sucursal_origen_id: source_sucursal_id,
+                        sucursal_destino_id: target_sucursal_id,
+                        estado: 'EXITOSA',
+                    }, { transaction });
+                    transferenciaPorDestino[target_sucursal_id] = transferencia.transferencia_id;
+                }
+                return transferenciaPorDestino[target_sucursal_id];
+            };
 
             for (const product of productDataList) {
                 const { codigo_barras, lote, fecha_caducidad, cantidad, motivo, target_sucursal_id } = product;
@@ -414,6 +459,8 @@ export class producto_inventarioRepository {
                 if (!target_sucursal_id || !codigo_barras || !lote || !cantidad) {
                     throw new Error('Faltan datos por producto para realizar la transferencia');
                 }
+
+                const transferencia_id = await getOrCreateTransferencia(target_sucursal_id);
 
                 const key = `${codigo_barras}|${lote}|${fecha_caducidad}`;
                 let originProduct;
@@ -468,7 +515,8 @@ export class producto_inventarioRepository {
                     observaciones: `Reabastecimiento a inventario ${target_sucursal_id}`,
                     codigo_barras,
                     lote,
-                    sucursal_id: source_sucursal_id
+                    sucursal_id: source_sucursal_id,
+                    transferencia_id
                 }, { transaction });
 
                 // 3. Buscar si ya existe el producto en el inventario destino
@@ -509,7 +557,8 @@ export class producto_inventarioRepository {
                     observaciones: `Transferencia desde inventario ${source_sucursal_id}`,
                     codigo_barras,
                     lote,
-                    sucursal_id: target_sucursal_id
+                    sucursal_id: target_sucursal_id,
+                    transferencia_id
                 }, { transaction });
 
                 transferResults.push({
@@ -529,6 +578,23 @@ export class producto_inventarioRepository {
         } catch (error) {
             await transaction.rollback();
             console.error('Error en transferencia múltiple: ', error.message);
+
+            // Fuera de la transacción ya revertida, a propósito: así el registro
+            // del intento fallido sobrevive aunque el inventario no se haya movido.
+            if (usuario_id && destinosIntentados.length > 0) {
+                try {
+                    await Promise.all(destinosIntentados.map(target_sucursal_id => Transferencia.create({
+                        usuario_id,
+                        sucursal_origen_id: source_sucursal_id,
+                        sucursal_destino_id: target_sucursal_id,
+                        estado: 'ERROR',
+                        error_mensaje: String(error.message ?? 'Error desconocido').slice(0, 255),
+                    })));
+                } catch (logError) {
+                    console.error('No se pudo persistir el registro de transferencia fallida: ', logError.message);
+                }
+            }
+
             throw error;
         }
     }

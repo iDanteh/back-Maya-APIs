@@ -62,13 +62,12 @@ Producto_Inventario.init({
         type: DataTypes.BOOLEAN,
         defaultValue: true,
     },
-    // Columna generada en MySQL: contiene la clave compuesta cuando is_active=1,
-    // NULL cuando is_active=0. El UNIQUE index sobre esta columna previene
-    // duplicados activos sin afectar registros inactivos (historial/auditoría).
-    // Definida en BD con: GENERATED ALWAYS AS (IF(is_active=1, CONCAT_WS(...), NULL)) VIRTUAL
-    uq_llave_activo: {
-        type: DataTypes.VIRTUAL,
-    },
+    // uq_llave_activo NO se declara aca a proposito: es una columna GENERATED
+    // ALWAYS ... VIRTUAL real en MySQL (ver maya_v29.sql), con su propio UNIQUE
+    // index. Declararla como DataTypes.VIRTUAL de Sequelize choca con eso durante
+    // sync({alter:true}) porque Sequelize la trata como atributo sin columna real.
+    // La columna y el indice siguen existiendo y aplicandose en la BD sin que el
+    // modelo la declare.
 },
 {
     sequelize,

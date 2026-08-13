@@ -2,6 +2,7 @@ import { Model, DataTypes} from 'sequelize';
 import sequelize from '../database/conexion.js';
 import Tipo_Movimiento from './Tipo_Movimiento.Model.js';
 import Producto_Inventario from './Producto_Inventario.Model.js';
+import Transferencia from './Transferencia.Model.js';
 
 class Movimiento_Inventario extends Model{}
 
@@ -46,6 +47,13 @@ Movimiento_Inventario.init({
         type: DataTypes.STRING(255),
         allowNull: false,
     },
+    // Nullable a propósito, sin `references`: correlaciona las filas de
+    // Salida/Entrada de una misma transferencia sin exigir un FK estricto
+    // en la BD (ver migration_add_transferencia_id_movimiento.sql).
+    transferencia_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
 },
 {
     sequelize,
@@ -58,6 +66,11 @@ Movimiento_Inventario.init({
 // Relaciones para poder hacer include correctamente
 Movimiento_Inventario.belongsTo(Producto_Inventario, { foreignKey: 'producto_inventario_id' });
 Movimiento_Inventario.belongsTo(Tipo_Movimiento, { foreignKey: 'tipo_movimiento_id' });
+// constraints: false — el diseño (ver comentario en la columna arriba y
+// migration_add_transferencia_id_movimiento.sql) es a propósito sin FK física.
+// Sin esto, sync({alter:true}) intenta crear el FK real y choca con la columna
+// creada manualmente.
+Movimiento_Inventario.belongsTo(Transferencia, { foreignKey: 'transferencia_id', constraints: false });
 
 
 export default Movimiento_Inventario;

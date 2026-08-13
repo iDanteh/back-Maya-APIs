@@ -32,7 +32,8 @@ export class MovimientoInventarioRepository {
             observaciones,
             codigo_barras: cbParam,
             lote: loteParam,
-            sucursal_id
+            sucursal_id,
+            transferencia_id
         } = payload;
 
         const tipo_movimiento_id = await this.getTipoMovimientoId(tipo_movimiento_nombre);
@@ -62,6 +63,7 @@ export class MovimientoInventarioRepository {
             cantidad,
             referencia: referenciaFinal,
             observaciones,
+            transferencia_id: transferencia_id || null,
         }, options);
     }
 

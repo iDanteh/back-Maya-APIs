@@ -21,7 +21,7 @@ Producto.init({
     },
     gramaje: {
         type: DataTypes.STRING(50),
-        allowNull: false,
+        allowNull: true,
     },
     precio_minimo: {
         type: DataTypes.DECIMAL(10, 2),
