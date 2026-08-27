@@ -35,7 +35,7 @@ export const getTopProductos = async (req, res, next) => {
         if (!PERIODOS_VALIDOS.includes(periodo)) {
             throw new ApiError(400, `periodo inválido, usa: ${PERIODOS_VALIDOS.join(', ')}`);
         }
-        let limitValue = 5;
+        let limitValue = 10;
         if (limit !== undefined) {
             limitValue = Number(limit);
             if (!Number.isFinite(limitValue) || limitValue < 0) {
