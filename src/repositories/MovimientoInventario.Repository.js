@@ -123,7 +123,7 @@ export class MovimientoInventarioRepository {
             opts.offset = offset;
         }
 
-        return this.model.findAll(opts);
+        return this.model.findAndCountAll(opts);
     }
 
     async getSalidasBySucursal(sucursal_id, { limit, offset, codigo_barras } = {}) {
@@ -169,7 +169,7 @@ export class MovimientoInventarioRepository {
             opts.offset = offset;
         }
 
-        return this.model.findAll(opts);
+        return this.model.findAndCountAll(opts);
     }
 
 }
