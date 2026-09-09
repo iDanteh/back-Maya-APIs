@@ -432,11 +432,19 @@ export const transferirMultiplesProductos = async (req, res) => {
 
 //Desactivar los productos caducados
 export const desactivarProductosCad = async (req, res) => {
+    const { sucursal_id } = req.params;
+    const { usuario_id } = req.query;
+
     try {
-
-        const { sucursal_id } = req.params;
-
         const result = await repoProductoInventario.desactivarProductosCaducados(sucursal_id);
+
+        await bitacoraRepo.registrar({
+            entidad: 'PRODUCTO_INVENTARIO',
+            accion: 'BAJA_CADUCIDAD',
+            usuario_id,
+            datos_despues: { sucursal_id, total: result.total, lotes: result.detalle },
+            resultado: 'EXITO',
+        });
 
         return res.status(200).json({
             success: true,
@@ -445,6 +453,14 @@ export const desactivarProductosCad = async (req, res) => {
         });
 
     } catch (error) {
+        await bitacoraRepo.registrar({
+            entidad: 'PRODUCTO_INVENTARIO',
+            accion: 'BAJA_CADUCIDAD',
+            usuario_id,
+            datos_despues: { sucursal_id },
+            resultado: 'ERROR',
+            mensaje_error: error.message,
+        });
 
         return res.status(500).json({
             success: false,

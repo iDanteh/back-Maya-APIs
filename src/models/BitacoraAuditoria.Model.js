@@ -60,6 +60,13 @@ BitacoraAuditoria.init({
     freezeTableName: true,
     tableName: 'bitacora_auditoria',
     timestamps: false,
+    // findAll (BitacoraAuditoria.Repository.js) siempre ordena por fecha DESC y
+    // filtra por entidad como criterio principal — mismo índice compuesto que
+    // se aplica manualmente vía migración (sync({force:false}) no altera tablas
+    // existentes en producción, ver migration_add_bitacora_auditoria_indexes.sql).
+    indexes: [
+        { name: 'idx_bitacora_entidad_fecha', fields: ['entidad', 'fecha'] },
+    ],
 });
 
 // Sin constraints: mismo criterio que la columna usuario_id arriba, la bitácora

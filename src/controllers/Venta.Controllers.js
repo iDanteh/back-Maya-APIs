@@ -5,6 +5,8 @@ import Producto_Inventario from '../models/Producto_Inventario.Model.js';
 import Inventario from '../models/Inventario.Model.js'
 import { VentaRepository } from '../repositories/VentaRepository.js';
 import MovimientoInventario from '../models/Movimiento_Inventario.Model.js';
+import BitacoraAuditoria from '../models/BitacoraAuditoria.Model.js';
+import { BitacoraAuditoriaRepository } from '../repositories/BitacoraAuditoria.Repository.js';
 import Producto from '../models/Producto.Model.js';
 import { getPagination } from '../utils/pagination.js';
 import dayjs from 'dayjs';
@@ -15,6 +17,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const ventaRepository = new VentaRepository(Venta, Detalle_Venta, Producto_Inventario, Inventario, MovimientoInventario);
+const bitacoraRepo = new BitacoraAuditoriaRepository(BitacoraAuditoria);
 
 function buildVentaIdClientStyle(sucursal_id, fecha = new Date()) {
     const suc = String(sucursal_id).slice(0, 3).toUpperCase();
@@ -94,6 +97,14 @@ export const createVenta = async (req, res) => {
         }
 
         if (detalles.some(d => !d.lote)) {
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: venta_id,
+            accion: 'ALTA',
+            usuario_id,
+            resultado: 'ERROR',
+            mensaje_error: 'Todos los productos deben especificar un lote',
+        });
         return res.status(400).json({ error: "Todos los productos deben especificar un lote" });
         }
 
@@ -126,6 +137,15 @@ export const createVenta = async (req, res) => {
         }
 
         if (!areNumbersEqual(totalCalculado, totalNum)) {
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: venta_id,
+            accion: 'ALTA',
+            usuario_id,
+            datos_antes: { total_reportado: totalNum, total_calculado: Number(totalCalculado.toFixed(2)) },
+            resultado: 'ERROR',
+            mensaje_error: 'El total de la venta no coincide con la suma de los subtotales de los detalles',
+        });
         return res.status(400).json({
             error: "El total de la venta no coincide con la suma de los subtotales de los detalles",
             details: {
@@ -136,6 +156,15 @@ export const createVenta = async (req, res) => {
         }
 
         if (!Number.isFinite(totalRecibidoNum) || totalRecibidoNum < totalCalculado) {
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: venta_id,
+            accion: 'ALTA',
+            usuario_id,
+            datos_antes: { total_recibido: totalRecibidoNum, total_calculado: Number(totalCalculado.toFixed(2)) },
+            resultado: 'ERROR',
+            mensaje_error: 'El dinero recibido no puede ser menor al total de la venta',
+        });
         return res.status(400).json({ error: "El dinero recibido no puede ser menor al total de la venta" });
         }
 
@@ -149,7 +178,53 @@ export const createVenta = async (req, res) => {
         total_recibido: totalRecibidoNum,
         };
 
+        // Snapshot propio de "antes" para la bitácora, leído FUERA de la transacción
+        // de negocio y sin lock (mismo criterio que deleteLot/cancelarVenta: no se
+        // modifica createVentaWithDetails ya probado). Es un "antes" aproximado, no
+        // atómico con el descuento real — aceptable para auditoría, no para lógica
+        // de negocio (ventana de carrera teórica con otra venta concurrente).
+        // Best-effort a propósito, con su propio try/catch: es una lectura solo para
+        // auditoría, nunca debe poder tumbar la venta real si falla (mismo criterio
+        // que bitacoraRepo.registrar, que atrapa sus propios errores internamente).
+        let existenciasAntesPorLote = new Map();
+        try {
+            const lotesInvolucrados = await Producto_Inventario.findAll({
+                where: {
+                    sucursal_id,
+                    [Op.or]: detallesNormalizados.map(d => ({ codigo_barras: d.codigo_barras, lote: d.lote })),
+                },
+            });
+            existenciasAntesPorLote = new Map(
+                lotesInvolucrados.map(p => [`${p.codigo_barras}|${p.lote}`, p.existencias])
+            );
+        } catch (snapshotError) {
+            console.error('No se pudo capturar snapshot de existencias para auditoría:', snapshotError.message);
+        }
+
         const nuevaVenta = await ventaRepository.createVentaWithDetails(ventaData, detallesParsed);
+
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: venta_id,
+            accion: 'ALTA',
+            usuario_id,
+            datos_despues: {
+                venta_id,
+                numero_factura,
+                sucursal_id,
+                fecha_venta: ventaData.fecha_venta,
+                total: ventaData.total,
+                total_recibido: ventaData.total_recibido,
+                cantidad_items: detallesNormalizados.length,
+                detalles: detallesNormalizados.map(d => ({
+                    codigo_barras: d.codigo_barras,
+                    lote: d.lote,
+                    cantidad_vendida: d.cantidad,
+                    existencias_antes: existenciasAntesPorLote.get(`${d.codigo_barras}|${d.lote}`) ?? null,
+                })),
+            },
+            resultado: 'EXITO',
+        });
 
         return res.status(201).json({
         message: "Venta registrada exitosamente",
@@ -161,6 +236,8 @@ export const createVenta = async (req, res) => {
         // Ocurre cuando el cliente tuvo un timeout pero el servidor sí completó la operación.
         // Devolvemos 409 para que el cliente elimine la venta de su cola offline sin contarla
         // como un error de negocio ni incrementar su contador de reintentos.
+        // No se audita este caso: no es un evento nuevo, la venta original ya quedó
+        // registrada en bitácora en su primer intento exitoso.
         if (error.name === 'SequelizeUniqueConstraintError') {
             return res.status(409).json({
                 error: 'Venta duplicada',
@@ -172,6 +249,15 @@ export const createVenta = async (req, res) => {
         (error.message.includes("No hay suficiente stock") || error.message.includes("no encontrado"))
             ? 400
             : 500;
+
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: req.body?.venta_id,
+            accion: 'ALTA',
+            usuario_id: req.body?.usuario_id,
+            resultado: 'ERROR',
+            mensaje_error: error.message,
+        });
 
         res.status(statusCode).json({ error: "Error al registrar la venta", details: error.message });
         console.error('createVenta error:', error);
@@ -347,14 +433,32 @@ export const getVentasPorUsuarioYFecha = async (req, res) => {
 };
 
 export const cancelarVenta = async (req, res) => {
-    try {
-        const { venta_id } = req.params;
+    const { venta_id } = req.params;
+    const { usuario_id } = req.body;
+    // Declarado fuera del try para que la rama de error también pueda auditar
+    // el snapshot, no solo el camino feliz.
+    let antes = null;
 
+    try {
         if (!venta_id) {
         return res.status(400).json({ error: 'Se requiere venta_id' });
         }
 
+        // Snapshot propio antes de tocar nada, mismo criterio que updateProductData:
+        // sin modificar ventaRepository.cancelarVenta ya probado.
+        antes = await Venta.findByPk(venta_id);
+
         const resultado = await ventaRepository.cancelarVenta(venta_id);
+
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: venta_id,
+            accion: 'CANCELACION',
+            usuario_id,
+            datos_antes: antes ? antes.toJSON() : null,
+            datos_despues: resultado,
+            resultado: 'EXITO',
+        });
 
         return res.status(200).json({
         success: true,
@@ -369,6 +473,16 @@ export const cancelarVenta = async (req, res) => {
         msg.includes('ya está anulada') ? 400 :
         msg.includes('no tiene detalles') ? 400 :
         500;
+
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: venta_id,
+            accion: 'CANCELACION',
+            usuario_id,
+            datos_antes: antes ? antes.toJSON() : null,
+            resultado: 'ERROR',
+            mensaje_error: msg,
+        });
 
         return res.status(status).json({
         success: false,

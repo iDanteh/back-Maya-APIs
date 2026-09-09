@@ -646,7 +646,17 @@ export class producto_inventarioRepository {
                 lock: transaction.LOCK.UPDATE
             });
 
+            const detalle = [];
+
             for (const producto of productosCaducados) {
+                // Snapshot antes del update: la instancia se muta debajo (existencias -> 0),
+                // así que si no se captura acá el "antes" para la bitácora se pierde.
+                detalle.push({
+                    producto_inventario_id: producto.producto_inventario_id,
+                    codigo_barras: producto.codigo_barras,
+                    lote: producto.lote,
+                    existencias_antes: producto.existencias,
+                });
 
                 //Registrar movimiento únicamente si todavía tenía existencias
                 if (producto.existencias > 0) {
@@ -672,7 +682,8 @@ export class producto_inventarioRepository {
             await transaction.commit();
 
             return {
-                total: productosCaducados.length
+                total: productosCaducados.length,
+                detalle
             };
 
         } catch (error) {
