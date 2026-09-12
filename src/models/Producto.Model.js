@@ -88,7 +88,7 @@ Producto.init({
     },
 });
 
-Producto.belongsTo(Categoria, { foreignKey: 'categoria_id' });
+//Producto.belongsTo(Categoria, { foreignKey: 'categoria_id', as:'Categoria' });
 Producto.belongsTo(Proveedor, { foreignKey: 'proveedor_id' });
 
 

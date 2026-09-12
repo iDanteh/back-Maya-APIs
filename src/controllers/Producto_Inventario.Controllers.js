@@ -467,5 +467,39 @@ export const desactivarProductosCad = async (req, res) => {
             error: error.message
         });
 
+    };
+};
+
+    export const getFaltanteByCategoria = async (req,res) => {
+        try {
+
+            const { sucursal_id, categoria_id } = req.query;
+            console.log("sucursal_id:", sucursal_id);
+            console.log("categoria_id:", categoria_id);
+
+            if (!sucursal_id) {
+                return res.status(400).json({
+                    ok: false,
+                    message: "Debe enviar una sucursal."
+                });
+            }
+            const datos = await repoProductoInventario.findFaltantesByCategory(
+                sucursal_id,
+                categoria_id || null
+            );
+
+            return res.status(200).json({
+                ok: true,
+                total: datos.length,
+                data: datos
+            });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            ok: false,
+            message: "Error al obtener productos con existencias bajas."
+        });
     }
 };

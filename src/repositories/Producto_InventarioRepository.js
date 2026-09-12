@@ -1,7 +1,8 @@
-import { Op, Sequelize} from 'sequelize'
+import { Op, Sequelize,fn,col,literal,where} from 'sequelize'
 import Producto from '../models/Producto.Model.js';
 import Categoria from '../models/Categoria.Model.js';
 import Transferencia from '../models/Transferencia.Model.js';
+import Producto_Inventario from '../models/Producto_Inventario.Model.js';
 import {
     aggregateInventoryProducts,
     buildInventoryLotWhere,
@@ -136,6 +137,8 @@ export class producto_inventarioRepository {
         });
     }
 
+
+    /**FALTANTES */
     async findFaltantesByInventoryId(sucursal_id) {
         return await this.model.findAll({
             where: { sucursal_id },
@@ -154,6 +157,86 @@ export class producto_inventarioRepository {
             ]
         });
     }
+
+    async findFaltantesByCategory(sucursalId, categoriaId = null) {
+        const whereProducto = {
+            is_active: true
+        };
+        if (categoriaId) {
+            whereProducto.categoria_id = categoriaId;
+        }
+
+        const resultado = await Producto_Inventario.findAll({
+            attributes: [
+                [col("Producto.categoria.nombre"), "categoria"],
+                [col("Producto.sustancia_activa"), "sustancia_activa"],
+                [col("Producto.gramaje"), "gramaje"],
+                [fn("SUM", col("Producto_Inventario.existencias")), "existencias_totales"],
+                [
+                    fn(
+                        "GROUP_CONCAT",
+                        literal(`
+                            DISTINCT CONCAT(
+                                Producto.descripcion,
+                                ' (',
+                                Producto.codigo_barras,
+                                ') - ',
+                                Producto_Inventario.existencias,
+                                ' pzas'
+                            )
+                            ORDER BY Producto.descripcion
+                            SEPARATOR '\\n'
+                        `)
+                    ),
+                    "productos"
+                ]
+            ],
+
+            include: [
+                {
+                    model: Producto,
+                    attributes: [],
+                    where: whereProducto,
+                    include: [
+                        {
+                            model: Categoria,
+                            as:'categoria',
+                            attributes: []
+                        }
+                    ]
+                }
+            ],
+
+            where: {
+                is_active: true,
+                sucursal_id: sucursalId
+            },
+
+            group: [
+                "Producto.categoria.categoria_id",
+                "Producto.categoria.nombre",
+                "Producto.sustancia_activa",
+                "Producto.gramaje"
+            ],
+
+            having: where(
+                fn("SUM", col("Producto_Inventario.existencias")),
+                Op.lte,
+                5
+            ),
+
+            order: [
+                [col("Producto.sustancia_activa"), "ASC"],
+                [col("Producto.gramaje"), "ASC"],
+                [col("Producto.Categoria.nombre"), "ASC"]
+            ],
+
+            raw: true
+
+        });
+
+        return resultado;
+    };
 
     // Nuevo método para buscar un producto específico en un inventario por código de barras
     async findByBarcodeInInventory(sucursal_id, codigo_barras) {
@@ -691,4 +774,6 @@ export class producto_inventarioRepository {
             throw error;
         }
     }
+
+
 }
