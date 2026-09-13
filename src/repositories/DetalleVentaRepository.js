@@ -43,7 +43,8 @@ export class detalle_VentaRepository {
                     },
                     include: [
                         {
-                            model: Categoria
+                            model: Categoria,
+                            as: 'categoria'
                         }
                     ]
                 },
