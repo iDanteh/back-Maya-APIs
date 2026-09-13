@@ -228,7 +228,7 @@ export class producto_inventarioRepository {
             order: [
                 [col("Producto.sustancia_activa"), "ASC"],
                 [col("Producto.gramaje"), "ASC"],
-                [col("Producto.Categoria.nombre"), "ASC"]
+                [col("Producto.categoria.nombre"), "ASC"]
             ],
 
             raw: true
