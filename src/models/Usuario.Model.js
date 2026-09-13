@@ -47,7 +47,7 @@ Usuario.init({
     clave_acceso: {
         type: DataTypes.STRING(5),
         allowNull: false,
-        unique: true,
+        unique: false,
     },
     is_active: {
         type: DataTypes.BOOLEAN,

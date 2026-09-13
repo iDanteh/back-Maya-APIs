@@ -25,10 +25,15 @@ export const getEntradasBySucursal = async (req, res) => {
     const { sucursal_id } = req.params;
 
     try {
-        const { limit, offset } = getPagination(req.query);
-        const entradas = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id, { limit, offset });
+        const { page, limit, offset } = getPagination(req.query);
+        const { codigo_barras } = req.query;
+        const {rows, count} = await repoMovimientoInventario.getEntradasBySucursal(sucursal_id, {
+            limit,
+            offset,
+            ...(codigo_barras ? { codigo_barras } : {}),
+        });
 
-        const entradasFormateadas = entradas.map(entrada => ({
+        const entradasFormateadas = rows.map(entrada => ({
             ...entrada,
             fecha_movimiento: dayjs(entrada.fecha_movimiento)
                 .tz('America/Mexico_City')
@@ -37,7 +42,16 @@ export const getEntradasBySucursal = async (req, res) => {
             sucursal_id: entrada['Producto_Inventario.sucursal_id'] || 'Eliminado',
         }));
 
-        res.status(200).json(entradasFormateadas);
+        res.status(200).json({
+            data: entradasFormateadas,
+            pagination: {
+                page,
+                limit,
+                total: count,
+                totalPages: Math.ceil(count / limit),
+                hasNextPage: page < Math.ceil(count / limit),
+            },
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener las entradas de la sucursal' });
@@ -48,10 +62,15 @@ export const getSalidasBySucursal = async (req, res) => {
     const { sucursal_id } = req.params;
 
     try {
-        const { limit, offset } = getPagination(req.query);
-        const salidas = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id, { limit, offset });
+        const { page, limit, offset } = getPagination(req.query);
+        const { codigo_barras } = req.query;
+        const {rows, count} = await repoMovimientoInventario.getSalidasBySucursal(sucursal_id, {
+            limit,
+            offset,
+            ...(codigo_barras ? { codigo_barras } : {}),
+        });
 
-        const salidasFormateadas = salidas.map(salida => ({
+        const salidasFormateadas = rows.map(salida => ({
             ...salida,
             fecha_movimiento: dayjs(salida.fecha_movimiento)
                 .tz('America/Mexico_City')
@@ -60,7 +79,17 @@ export const getSalidasBySucursal = async (req, res) => {
             sucursal_id: salida['Producto_Inventario.sucursal_id'] || 'Eliminado',
         }));
 
-        res.status(200).json(salidasFormateadas);
+        /*res.status(200).json(salidasFormateadas);*/
+        res.status(200).json({
+            data: salidasFormateadas,
+            pagination: {
+                page,
+                limit,
+                total: count,
+                totalPages: Math.ceil(count / limit),
+                hasNextPage: page < Math.ceil(count / limit),
+            },
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener las salidas de la sucursal' });

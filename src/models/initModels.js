@@ -1,5 +1,6 @@
 import Producto from "./Producto.Model.js";
 import Categoria from "./Categoria.Model.js";
+import "./BitacoraAuditoria.Model.js";
 
 // Asociaciones
 Producto.belongsTo(Categoria, {

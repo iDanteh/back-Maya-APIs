@@ -86,7 +86,7 @@ export class MetricasRepository {
         const sql = `
             SELECT
                 p.codigo_barras,
-                p.nombre,
+                p.descripcion AS nombre,
                 SUM(dv.cantidad) AS unidades
             FROM detalle_venta dv
             INNER JOIN venta v ON v.venta_id = dv.venta_id
@@ -121,7 +121,7 @@ export class MetricasRepository {
                 pi.lote,
                 pi.fecha_caducidad,
                 pi.existencias AS cantidad,
-                p.nombre,
+                p.descripcion AS nombre,
                 s.sucursal_id,
                 s.nombre AS sucursal_nombre
             FROM producto_inventario pi
@@ -150,6 +150,117 @@ export class MetricasRepository {
             sucursal_nombre: r.sucursal_nombre,
             dias_restantes: dayjs(r.fecha_caducidad).startOf('day').diff(hoy, 'day'),
         }));
+    }
+
+    // 4) Serie diaria de ventas (para gráfica de tendencia)
+    async getVentasDiarias({ periodo = '7d', sucursalId } = {}) {
+        const { actual } = this._rangoPeriodo(periodo);
+
+        const sql = `
+            SELECT
+                DATE(v.fecha_venta) AS fecha,
+                SUM(v.total) AS ventas
+            FROM venta v
+            WHERE v.anulada = 0
+                AND v.fecha_venta BETWEEN :inicio AND :fin
+                ${sucursalId ? 'AND v.sucursal_id = :sucursalId' : ''}
+            GROUP BY DATE(v.fecha_venta)
+            ORDER BY fecha ASC
+        `;
+
+        const rows = await this.sequelize.query(sql, {
+            replacements: { inicio: actual.inicio, fin: actual.fin, sucursalId: sucursalId || null },
+            type: QueryTypes.SELECT,
+        });
+
+        const zona = 'America/Mexico_City';
+        const ventasPorFecha = new Map(
+            rows.map((r) => [dayjs.tz(r.fecha, zona).format('YYYY-MM-DD'), Number(r.ventas) || 0])
+        );
+
+        const inicio = dayjs.tz(actual.inicio, zona).startOf('day');
+        const fin = dayjs.tz(actual.fin, zona).startOf('day');
+
+        const serie = [];
+        for (let dia = inicio; !dia.isAfter(fin); dia = dia.add(1, 'day')) {
+            const fecha = dia.format('YYYY-MM-DD');
+            serie.push({ fecha, ventas: ventasPorFecha.get(fecha) || 0 });
+        }
+
+        return serie;
+    }
+
+    // 5) Top usuarios por monto vendido
+    async getTopUsuarios({ periodo = '7d', sucursalId, limit = 5 } = {}) {
+        const { actual } = this._rangoPeriodo(periodo);
+
+        const sql = `
+            SELECT
+                v.usuario_id,
+                u.nombre AS nombre,
+                SUM(v.total) AS monto_total,
+                COUNT(v.venta_id) AS cantidad_ventas
+            FROM venta v
+            INNER JOIN usuario u ON u.usuario_id = v.usuario_id
+            WHERE v.anulada = 0
+                AND v.fecha_venta BETWEEN :inicio AND :fin
+                ${sucursalId ? 'AND v.sucursal_id = :sucursalId' : ''}
+            GROUP BY v.usuario_id, u.nombre
+            ORDER BY monto_total DESC
+            LIMIT :limit
+        `;
+
+        const rows = await this.sequelize.query(sql, {
+            replacements: { inicio: actual.inicio, fin: actual.fin, sucursalId: sucursalId || null, limit },
+            type: QueryTypes.SELECT,
+        });
+
+        return rows.map((r) => ({
+            usuario_id: r.usuario_id,
+            nombre: r.nombre,
+            monto_total: Number(r.monto_total) || 0,
+            cantidad_ventas: Number(r.cantidad_ventas) || 0,
+        }));
+    }
+
+    // 6) Serie mensual de ventas (para gráfica de tendencia mensual)
+    async getVentasMensuales({ meses = 12, sucursalId } = {}) {
+        const zona = 'America/Mexico_City';
+
+        const finActual = dayjs().tz(zona).endOf('month');
+        const inicioActual = dayjs().tz(zona).subtract(meses - 1, 'month').startOf('month');
+
+        const inicio = inicioActual.format('YYYY-MM-DD HH:mm:ss');
+        const fin = finActual.format('YYYY-MM-DD HH:mm:ss');
+
+        const sql = `
+            SELECT
+                DATE_FORMAT(v.fecha_venta, '%Y-%m') AS mes,
+                SUM(v.total) AS ventas
+            FROM venta v
+            WHERE v.anulada = 0
+                AND v.fecha_venta BETWEEN :inicio AND :fin
+                ${sucursalId ? 'AND v.sucursal_id = :sucursalId' : ''}
+            GROUP BY DATE_FORMAT(v.fecha_venta, '%Y-%m')
+            ORDER BY mes ASC
+        `;
+
+        const rows = await this.sequelize.query(sql, {
+            replacements: { inicio, fin, sucursalId: sucursalId || null },
+            type: QueryTypes.SELECT,
+        });
+
+        const ventasPorMes = new Map(
+            rows.map((r) => [dayjs.tz(r.mes, zona).format('YYYY-MM'), Number(r.ventas) || 0])
+        );
+
+        const serie = [];
+        for (let mes = inicioActual; !mes.isAfter(finActual); mes = mes.add(1, 'month')) {
+            const clave = mes.format('YYYY-MM');
+            serie.push({ mes: clave, ventas: ventasPorMes.get(clave) || 0 });
+        }
+
+        return serie;
     }
 }
 

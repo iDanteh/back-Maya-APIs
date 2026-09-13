@@ -42,5 +42,4 @@ Categoria.init({
 }
 );
 
-
 export default Categoria;

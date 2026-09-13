@@ -2,11 +2,15 @@ import { Router } from "express";
 import { getProductoInventario, getProductsByInventory, getSyncInventario,
     searchProduct, deleteLot, transferirProducto, transferirMultiplesProductos,
     addMultipleProductsToInventory, addProductToInventory, updateProductData, getFaltantesProductsByInventory,
-    desactivarProductosCad} from "../controllers/Producto_Inventario.Controllers.js";
+    desactivarProductosCad,
+    getProductosCaducados,
+    getFaltanteByCategoria} from "../controllers/Producto_Inventario.Controllers.js";
 import { verifyToken } from '../middlewares/auth.js';
 
 const router = Router();
 router.get('/api/v1/productoInventario', getProductoInventario);
+router.get('/api/v1/productoInventario/faltantesByCategoria', getFaltanteByCategoria);
+
 // La ruta /sync debe definirse ANTES de /:sucursal_id para que Express no la trate como parámetro
 router.get('/api/v1/productoInventario/:sucursal_id/sync', getSyncInventario);
 router.get('/api/v1/productoInventario/:sucursal_id', getProductsByInventory)
@@ -23,6 +27,8 @@ router.post('/api/v1/productoInventario/transferir-multiples', transferirMultipl
 
 // Ruta para obtener productos faltantes (sin stock) en una sucursal
 router.get('/api/v1/productoInventario/faltantes/:sucursal_id',  getFaltantesProductsByInventory);
+
+router.get('/api/v1/productoInventario/visualizar/caducados/:sucursal_id',getProductosCaducados);
 
 //Ruta para desactivar y actualizar los productos caducados
 router.patch('/api/v1/productoInventario/:sucursal_id/caducados',desactivarProductosCad);

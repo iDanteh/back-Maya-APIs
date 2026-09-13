@@ -32,7 +32,8 @@ export class MovimientoInventarioRepository {
             observaciones,
             codigo_barras: cbParam,
             lote: loteParam,
-            sucursal_id
+            sucursal_id,
+            transferencia_id
         } = payload;
 
         const tipo_movimiento_id = await this.getTipoMovimientoId(tipo_movimiento_nombre);
@@ -62,6 +63,7 @@ export class MovimientoInventarioRepository {
             cantidad,
             referencia: referenciaFinal,
             observaciones,
+            transferencia_id: transferencia_id || null,
         }, options);
     }
 
@@ -76,56 +78,98 @@ export class MovimientoInventarioRepository {
         return await this.model.bulkCreate(movimientosData);
     }
 
-    async getEntradasBySucursal(sucursal_id, { limit, offset } = {}) {
+    async getEntradasBySucursal(sucursal_id, { limit, offset, codigo_barras } = {}) {
+        const whereProducto = {
+            sucursal_id,
+        };
+
+        if (codigo_barras?.trim()) {
+            whereProducto.codigo_barras = codigo_barras.trim();
+        }
+
         const opts = {
             include: [
-            {
-                model: this.tipoMovimientoModel,
-                where: {
-                    descripcion: [
-                        'Entrada',
-                        'Anulación de venta',
-                        'Actualizacion manual del inventario'
-                    ]
+                {
+                    model: this.tipoMovimientoModel,
+                    where: {
+                        descripcion: [
+                            "Entrada",
+                            "Anulación de venta",
+                            "Actualizacion manual del inventario",
+                        ],
+                    },
+                    attributes: [],
                 },
-                attributes: [],
-            },
-            {
-                model: this.model.sequelize.models.Producto_Inventario,
-                where: { sucursal_id },
-                attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
-                required: true,
-            }
+                {
+                    model: this.model.sequelize.models.Producto_Inventario,
+                    where: whereProducto,
+                    attributes: [
+                        "codigo_barras",
+                        "sucursal_id",
+                        "is_active",
+                    ],
+                    required: true,
+                },
             ],
-            order: [['fecha_movimiento', 'DESC']],
+            order: [["fecha_movimiento", "DESC"]],
             raw: true,
         };
-        if (limit !== undefined) opts.limit = limit;
-        if (offset !== undefined) opts.offset = offset;
-        return await this.model.findAll(opts);
+
+        if (limit !== undefined) {
+            opts.limit = limit;
+        }
+
+        if (offset !== undefined) {
+            opts.offset = offset;
+        }
+
+        return this.model.findAndCountAll(opts);
     }
 
-    async getSalidasBySucursal(sucursal_id, { limit, offset } = {}) {
+    async getSalidasBySucursal(sucursal_id, { limit, offset, codigo_barras } = {}) {
+        const whereProducto = {
+            sucursal_id,
+        };
+
+        if (codigo_barras?.trim()) {
+            whereProducto.codigo_barras = codigo_barras.trim();
+        }
+
         const opts = {
             include: [
-            {
-                model: this.tipoMovimientoModel,
-                where: { descripcion: 'Salida' },
-                attributes: [],
-            },
-            {
-                model: this.model.sequelize.models.Producto_Inventario,
-                where: { sucursal_id },
-                attributes: ['codigo_barras', 'sucursal_id', 'is_active'],
-                required: true,
-            },
+                {
+                    model: this.tipoMovimientoModel,
+                    where: {
+                        descripcion: [
+                            "Salida"
+                        ],
+                    },
+                    attributes: [],
+                },
+                {
+                    model: this.model.sequelize.models.Producto_Inventario,
+                    where: whereProducto,
+                    attributes: [
+                        "codigo_barras",
+                        "sucursal_id",
+                        "is_active",
+                    ],
+                    required: true,
+                },
             ],
-            order: [['fecha_movimiento', 'DESC']],
+            order: [["fecha_movimiento", "DESC"]],
             raw: true,
         };
-        if (limit !== undefined) opts.limit = limit;
-        if (offset !== undefined) opts.offset = offset;
-        return await this.model.findAll(opts);
+
+        if (limit !== undefined) {
+            opts.limit = limit;
+        }
+
+        if (offset !== undefined) {
+            opts.offset = offset;
+        }
+
+        return this.model.findAndCountAll(opts);
     }
 
 }
