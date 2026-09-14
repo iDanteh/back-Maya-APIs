@@ -208,7 +208,6 @@ export class producto_inventarioRepository {
             ],
 
             where: {
-                is_active: true,
                 sucursal_id: sucursalId
             },
 
