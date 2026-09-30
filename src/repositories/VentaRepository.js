@@ -555,6 +555,7 @@ export class VentaRepository {
 
             const detalles = await this.detalleVentaModel.findAll({
             where: { venta_id },
+            include: [{ model: this.productoInventarioModel, required: false }],
             transaction,
             lock: transaction.LOCK.UPDATE,
             });
@@ -563,6 +564,7 @@ export class VentaRepository {
             throw new Error('La venta no tiene detalles para reintegrar');
             }
 
+            const detallesReintegrados = [];
             for (const d of detalles) {
             const qty = Number(d.cantidad);
 
@@ -572,6 +574,10 @@ export class VentaRepository {
                 );
             }
 
+            // lote_hint viene del JOIN con producto_inventario incluido en el findAll.
+            // Resuelve el bug silencioso: detalle_venta no tiene columna lote, así que
+            // d.lote siempre era undefined y el fallback path-2 nunca se ejecutaba.
+            const lote_hint = d.Producto_Inventario?.lote ?? null;
             let productoInventario = null;
 
             if (d.producto_inventario_id) {
@@ -581,12 +587,12 @@ export class VentaRepository {
                 });
             }
 
-            if (!productoInventario && d.lote) {
+            if (!productoInventario && lote_hint) {
                 productoInventario = await this.productoInventarioModel.findOne({
                 where: {
                     sucursal_id: venta.sucursal_id,
                     codigo_barras: d.codigo_barras,
-                    lote: d.lote,
+                    lote: lote_hint,
                 },
                 order: [
                     ['producto_inventario_id', 'DESC'],
@@ -612,17 +618,17 @@ export class VentaRepository {
                 lock: transaction.LOCK.UPDATE,
                 });
 
-                if (productoInventario && !d.lote) {
-                }
             }
 
             if (!productoInventario) {
                 throw new Error(
                 `No se encontró producto_inventario para reintegrar: ` +
                 `codigo=${d.codigo_barras} detalle_venta_id=${d.detalle_venta_id ?? 'N/A'} ` +
-                `producto_inventario_id=${d.producto_inventario_id ?? 'null'} lote=${d.lote ?? 'null'}`
+                `producto_inventario_id=${d.producto_inventario_id ?? 'null'} lote=${lote_hint ?? 'null'}`
                 );
             }
+
+            const existencias_antes = productoInventario.existencias;
 
             await this.productoInventarioModel.update(
                 {
@@ -647,6 +653,15 @@ export class VentaRepository {
                 },
                 { transaction }
             );
+
+            detallesReintegrados.push({
+                producto_inventario_id: productoInventario.producto_inventario_id,
+                codigo_barras: d.codigo_barras,
+                lote: productoInventario.lote,
+                cantidad_reintegrada: qty,
+                existencias_antes,
+                existencias_despues: existencias_antes + qty,
+            });
             }
 
             await this.ventaModel.update(
@@ -655,7 +670,7 @@ export class VentaRepository {
             );
 
             await transaction.commit();
-            return { success: true, venta_id, message: 'Venta cancelada y existencias reintegradas' };
+            return { success: true, venta_id, message: 'Venta cancelada y existencias reintegradas', detalles_reintegrados: detallesReintegrados };
         } catch (error) {
             await transaction.rollback();
             throw error;
