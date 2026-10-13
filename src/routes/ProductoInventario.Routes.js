@@ -3,12 +3,8 @@ import { getProductoInventario, getProductsByInventory, getSyncInventario,
     searchProduct, deleteLot, transferirProducto, transferirMultiplesProductos,
     addMultipleProductsToInventory, addProductToInventory, updateProductData, getFaltantesProductsByInventory,
     desactivarProductosCad,
-<<<<<<< Updated upstream
     getProductosCaducados,
-    getFaltanteByCategoria} from "../controllers/Producto_Inventario.Controllers.js";
-=======
-    getProductosCaducados, getSucursalesConStock} from "../controllers/Producto_Inventario.Controllers.js";
->>>>>>> Stashed changes
+    getFaltanteByCategoria, getSucursalesConStock} from "../controllers/Producto_Inventario.Controllers.js";
 import { verifyToken } from '../middlewares/auth.js';
 
 const router = Router();

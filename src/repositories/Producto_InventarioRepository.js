@@ -137,10 +137,8 @@ export class producto_inventarioRepository {
         });
     }
 
-<<<<<<< Updated upstream
 
     /**FALTANTES */
-=======
     // Disponibilidad de un producto a través de TODAS las sucursales (no solo la actual).
     // Consulta cruda con JOIN: Producto_Inventario no tiene una asociación belongsTo(Sucursal)
     // declarada (el FK existe en BD pero no en el modelo), así que un include de Sequelize
@@ -162,7 +160,6 @@ export class producto_inventarioRepository {
         );
     }
 
->>>>>>> Stashed changes
     async findFaltantesByInventoryId(sucursal_id) {
         return await this.model.findAll({
             where: { sucursal_id },
