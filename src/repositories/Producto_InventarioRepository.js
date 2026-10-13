@@ -137,8 +137,32 @@ export class producto_inventarioRepository {
         });
     }
 
+<<<<<<< Updated upstream
 
     /**FALTANTES */
+=======
+    // Disponibilidad de un producto a través de TODAS las sucursales (no solo la actual).
+    // Consulta cruda con JOIN: Producto_Inventario no tiene una asociación belongsTo(Sucursal)
+    // declarada (el FK existe en BD pero no en el modelo), así que un include de Sequelize
+    // no es viable sin tocar el grafo de asociaciones global. Raw query parametrizada evita eso.
+    async findSucursalesConStock(codigo_barras) {
+        return this.model.sequelize.query(
+            `SELECT pi.sucursal_id, s.nombre, SUM(pi.existencias) AS existencias_totales
+             FROM producto_inventario pi
+             INNER JOIN sucursal s ON s.sucursal_id = pi.sucursal_id
+             WHERE pi.codigo_barras = :codigo_barras
+               AND pi.is_active = true
+               AND pi.existencias > 0
+             GROUP BY pi.sucursal_id, s.nombre
+             ORDER BY existencias_totales DESC`,
+            {
+                replacements: { codigo_barras },
+                type: Sequelize.QueryTypes.SELECT,
+            }
+        );
+    }
+
+>>>>>>> Stashed changes
     async findFaltantesByInventoryId(sucursal_id) {
         return await this.model.findAll({
             where: { sucursal_id },

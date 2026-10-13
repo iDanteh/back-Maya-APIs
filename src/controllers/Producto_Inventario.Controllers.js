@@ -124,6 +124,17 @@ export const searchProduct = async (req, res) => {
     }
 };
 
+// Disponibilidad de un producto en todas las sucursales (solo lectura, informativo).
+export const getSucursalesConStock = async (req, res) => {
+    try {
+        const { codigo_barras } = req.params;
+        const sucursales = await repoProductoInventario.findSucursalesConStock(codigo_barras);
+        res.status(200).json(sucursales);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const addProductToInventory = async (req, res) => {
     try {
         const { sucursal_id } = req.params;
