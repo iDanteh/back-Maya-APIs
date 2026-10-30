@@ -19,6 +19,12 @@ dayjs.extend(timezone);
 const ventaRepository = new VentaRepository(Venta, Detalle_Venta, Producto_Inventario, Inventario, MovimientoInventario);
 const bitacoraRepo = new BitacoraAuditoriaRepository(BitacoraAuditoria);
 
+// Tope físico de total/total_recibido: DECIMAL(10,2) en la BD. Sin este guard,
+// una venta offline con un monto fuera de rango pasa todas las validaciones de
+// negocio (acá nunca se ejecutan estando offline) y revienta recién en el INSERT
+// al sincronizar, como SequelizeDatabaseError sin mapear a un 4xx.
+const MAX_MONTO_DECIMAL = 99999999.99;
+
 function buildVentaIdClientStyle(sucursal_id, fecha = new Date()) {
     const suc = String(sucursal_id).slice(0, 3).toUpperCase();
     const pad2 = (n) => String(n).padStart(2, "0");
@@ -136,6 +142,10 @@ export const createVenta = async (req, res) => {
         return res.status(400).json({ error: "El total de la venta debe ser un número positivo" });
         }
 
+        if (totalNum > MAX_MONTO_DECIMAL) {
+        return res.status(400).json({ error: `El total de la venta no puede superar ${MAX_MONTO_DECIMAL}` });
+        }
+
         if (!areNumbersEqual(totalCalculado, totalNum)) {
         await bitacoraRepo.registrar({
             entidad: 'VENTA',
@@ -166,6 +176,19 @@ export const createVenta = async (req, res) => {
             mensaje_error: 'El dinero recibido no puede ser menor al total de la venta',
         });
         return res.status(400).json({ error: "El dinero recibido no puede ser menor al total de la venta" });
+        }
+
+        if (totalRecibidoNum > MAX_MONTO_DECIMAL) {
+        await bitacoraRepo.registrar({
+            entidad: 'VENTA',
+            entidad_id: venta_id,
+            accion: 'ALTA',
+            usuario_id,
+            datos_antes: { total_recibido: totalRecibidoNum },
+            resultado: 'ERROR',
+            mensaje_error: `El dinero recibido no puede superar ${MAX_MONTO_DECIMAL}`,
+        });
+        return res.status(400).json({ error: `El dinero recibido no puede superar ${MAX_MONTO_DECIMAL}` });
         }
 
         const ventaData = {
@@ -245,8 +268,15 @@ export const createVenta = async (req, res) => {
             });
         }
 
+        // "Out of range" ya debería quedar cortado por la validación de MAX_MONTO_DECIMAL
+        // de más arriba, pero queda acá como red de seguridad: sin esto, el guard de
+        // connectionSync.js (front) lo trata como error transitorio (solo 4xx es
+        // "rechazo permanente") y lo reintenta 10 veces en vez de marcarlo failed al toque.
+        const esErrorDeRango =
+        error.name === 'SequelizeDatabaseError' && error.message.includes('Out of range');
+
         const statusCode =
-        (error.message.includes("No hay suficiente stock") || error.message.includes("no encontrado"))
+        (error.message.includes("No hay suficiente stock") || error.message.includes("no encontrado") || esErrorDeRango)
             ? 400
             : 500;
 
