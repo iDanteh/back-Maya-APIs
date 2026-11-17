@@ -192,6 +192,7 @@ export class producto_inventarioRepository {
                 [col("Producto.categoria.nombre"), "categoria"],
                 [col("Producto.sustancia_activa"), "sustancia_activa"],
                 [col("Producto.gramaje"), "gramaje"],
+                [col("Producto.presentacion"), "presentacion"],
                 [fn("SUM", col("Producto_Inventario.existencias")), "existencias_totales"],
                 [
                     fn(
@@ -236,7 +237,8 @@ export class producto_inventarioRepository {
                 "Producto.categoria.categoria_id",
                 "Producto.categoria.nombre",
                 "Producto.sustancia_activa",
-                "Producto.gramaje"
+                "Producto.gramaje",
+                "Producto.presentacion"
             ],
 
             having: where(
@@ -248,6 +250,7 @@ export class producto_inventarioRepository {
             order: [
                 [col("Producto.sustancia_activa"), "ASC"],
                 [col("Producto.gramaje"), "ASC"],
+                [col("Producto.presentacion"), "ASC"],
                 [col("Producto.categoria.nombre"), "ASC"]
             ],
 
